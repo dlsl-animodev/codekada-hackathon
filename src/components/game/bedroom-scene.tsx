@@ -2,6 +2,7 @@ import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import Player from "./player";
 
 interface ObjectState {
   rotation: { x: number; y: number; z: number };
@@ -27,7 +28,7 @@ interface BedroomSceneProps {
   >;
 }
 
-export default function BedroomScene({ objectStates, setObjectStates }: BedroomSceneProps) {
+export default function BedroomScene({ objectStates, setObjectStates }: BedroomSceneProps, props: any) {
   const { scene } = useGLTF("/models/bedroom.glb") as any;
   const bedRef = useRef<THREE.Object3D | null>(null);
   const deskRef = useRef<THREE.Object3D | null>(null);
@@ -41,25 +42,25 @@ export default function BedroomScene({ objectStates, setObjectStates }: BedroomS
     // traverse the scene to find objects by name
     scene.traverse((child: THREE.Object3D) => {
       const childName = child.name.toLowerCase();
-      
+
       // look for bed-related objects
       if (childName.includes("bed") && !bedRef.current) {
         bedRef.current = child;
         console.log("found bed:", child.name);
       }
-      
+
       // look for desk-related objects
       if (childName.includes("desk") && !deskRef.current) {
         deskRef.current = child;
         console.log("found desk:", child.name);
       }
-      
+
       // look for drawer-related objects
       if (childName.includes("drawer") && !drawerRef.current) {
         drawerRef.current = child;
         console.log("found drawer:", child.name);
       }
-      
+
       // look for campfire-related objects
       if ((childName.includes("campfire") || childName.includes("fire") || childName.includes("camp")) && !campfireRef.current) {
         campfireRef.current = child;
@@ -255,7 +256,13 @@ export default function BedroomScene({ objectStates, setObjectStates }: BedroomS
     }
   });
 
-  return <primitive object={scene} />;
-}
 
+  return (
+    <group {...props}>
+      <primitive object={scene} />
+      {/* Player placed near the center; adjust position as needed */}
+      <Player position={[0, 0, 0]} />
+    </group>
+  );
+}
 useGLTF.preload("/models/bedroom.glb");
