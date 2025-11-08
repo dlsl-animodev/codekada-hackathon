@@ -2,6 +2,8 @@
 
 // First page is the actual title, description and cta
 
+import HeroImage from '../../../public/images/hero-image.jpg'
+
 import Link from "next/link";
 import { useUsername } from "../../../hooks/use-username";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Dispatch } from "react";
 import { SetStateAction } from "react";
+import Image from 'next/image';
 
 interface FirstPageProps {
     setPage: Dispatch<SetStateAction<number>>;
@@ -94,29 +97,17 @@ export default function FirstPage({ setPage }: FirstPageProps) {
     }, []);
 
     return (
-        <div className="relative h-dvh w-full overflow-hidden bg-gradient-to-br from-[#0A0F1E] via-[#1A1F3E] to-[#0A0F1E]">
+        <div className="relative h-dvh w-full overflow-hidden">
             {/* Animated Background Canvas */}
-            <canvas
-                ref={canvasRef}
-                className="absolute inset-0 z-0"
-                style={{ imageRendering: "pixelated" }}
-            />
-
-            {/* Grid overlay for low-poly feel */}
-            <div
-                className="absolute inset-0 z-0 opacity-10"
-                style={{
-                    backgroundImage: `
-            linear-gradient(rgba(250, 198, 56, 0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(250, 198, 56, 0.3) 1px, transparent 1px)
-          `,
-                    backgroundSize: "50px 50px",
-                }}
+            <Image 
+                src={HeroImage}
+                alt="Hero Background"
+                className="w-screen h-screen mb-8 absolute z-[-1] brightness-50 blur-sm"            
             />
 
             {/* Content Container */}
             <div className="relative z-10 h-full max-w-6xl mx-auto flex flex-col items-center justify-center px-6">
-                <div className="flex flex-col items-center justify-center gap-8 p-12 rounded-3xl bg-gradient-to-br from-black/40 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl max-w-3xl transform  transition-transform duration-300">
+                <div className="flex flex-col items-center justify-center gap-8 p-12 rounded-3xl bg-gradient-to-br from-black/20 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl max-w-3xl transform  transition-transform duration-300">
                     {/* Title with modern styling */}
                     <h1 className="text-center text-6xl md:text-7xl font-bold bg-gradient-to-r from-white via-[#FAC638] to-white bg-clip-text text-transparent leading-tight">
                         The Case of the
@@ -130,7 +121,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
                     <p className="text-center text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
                         A frantic letter arrives at Baker Street. Lady Eleanor
                         of Wiltshire has lost her family's priceless sapphire
-                        necklace — the{" "}
+                        necklace, the{" "}
                         <span className="text-[#64B5F6] font-semibold">
                             Blue Serpent
                         </span>
