@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useImperativeHandle } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { World } from "@/hooks/world";
 import * as THREE from "three";
 
 type Vec3 = [number, number, number];
@@ -117,6 +118,8 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
       const obj = group.current;
       if (!obj) return;
 
+      const playerRadius = 0.5; // collision radius for player
+
       // determine movement direction - if there's a voice target, follow it and ignore keys
       const dir = new THREE.Vector3();
       const target = targetRef.current;
@@ -132,8 +135,16 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
           const step = targetSpeedRef.current * delta;
           // avoid overshoot
           const move = Math.min(step, dist);
-          obj.position.x += dir.x * move;
-          obj.position.z += dir.z * move;
+          
+          // calculate new position and check collision
+          const newPosition = new THREE.Vector3(
+            obj.position.x + dir.x * move,
+            obj.position.y,
+            obj.position.z + dir.z * move
+          );
+          
+          const validPosition = World.getValidPosition(newPosition, obj.position, playerRadius);
+          obj.position.copy(validPosition);
 
           // face movement direction (y-up)
           const targetAngle = Math.atan2(dir.x, dir.z);
@@ -191,8 +202,16 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
         if (dir.length() > 0) {
           dir.normalize();
           const speedUsed = speed; // keyboard speed
-          obj.position.x += dir.x * speedUsed * delta;
-          obj.position.z += dir.z * speedUsed * delta;
+          
+          // calculate new position and check collision
+          const newPosition = new THREE.Vector3(
+            obj.position.x + dir.x * speedUsed * delta,
+            obj.position.y,
+            obj.position.z + dir.z * speedUsed * delta
+          );
+          
+          const validPosition = World.getValidPosition(newPosition, obj.position, playerRadius);
+          obj.position.copy(validPosition);
 
           // face movement direction (y-up)
           const targetAngle = Math.atan2(dir.x, dir.z);
