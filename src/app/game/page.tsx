@@ -7,6 +7,14 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import SceneCanvas from "@/components/game/scene-canvas";
 
+// object state type for bedroom objects
+interface ObjectState {
+  rotation: { x: number; y: number; z: number };
+  targetRotation: { x: number; y: number; z: number };
+  action: string;
+  color: string;
+}
+
 const mockRoom = {
   name: "Lady Eleanor's Bedroom",
   description:
@@ -106,12 +114,130 @@ export default function Page() {
     isConnected,
     isListening,
     isProcessing,
+    isSpeaking,
     connect,
     disconnect,
     startListening,
     stopListening,
     sendText,
+    stopSpeaking,
   } = useGeminiLive();
+
+  // object states for bedroom furniture
+  const [objectStates, setObjectStates] = useState<{
+    bed: ObjectState;
+    desk: ObjectState;
+    drawer: ObjectState;
+    campfire: ObjectState;
+  }>({
+    bed: {
+      rotation: { x: 0, y: 0, z: 0 },
+      targetRotation: { x: 0, y: 0, z: 0 },
+      action: "",
+      color: "#8b7355",
+    },
+    desk: {
+      rotation: { x: 0, y: 0, z: 0 },
+      targetRotation: { x: 0, y: 0, z: 0 },
+      action: "",
+      color: "#6b5d4f",
+    },
+    drawer: {
+      rotation: { x: 0, y: 0, z: 0 },
+      targetRotation: { x: 0, y: 0, z: 0 },
+      action: "",
+      color: "#5a4a3a",
+    },
+    campfire: {
+      rotation: { x: 0, y: 0, z: 0 },
+      targetRotation: { x: 0, y: 0, z: 0 },
+      action: "",
+      color: "#ff6600",
+    },
+  });
+
+  // color map for objects
+  const colorMap: { [key: string]: string } = {
+    red: "#ff0000",
+    blue: "#0066ff",
+    green: "#00ff00",
+    yellow: "#ffff00",
+    orange: "#ff8800",
+    purple: "#9900ff",
+    pink: "#ff69b4",
+    cyan: "#00ffff",
+    white: "#ffffff",
+    black: "#000000",
+    gold: "#ffd700",
+    silver: "#c0c0c0",
+    brown: "#8b7355",
+  };
+
+  // detect commands for bedroom objects
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== "user") return;
+
+    const text = lastMessage.text.toLowerCase();
+
+    // determine which object is being referenced
+    let targetObject: "bed" | "desk" | "drawer" | "campfire" | null = null;
+    if (text.includes("bed")) targetObject = "bed";
+    else if (text.includes("desk")) targetObject = "desk";
+    else if (text.includes("drawer")) targetObject = "drawer";
+    else if (text.includes("campfire") || text.includes("fire") || text.includes("camp")) targetObject = "campfire";
+
+    if (!targetObject) return;
+
+    setObjectStates((prev) => {
+      const newStates = { ...prev };
+      const state = { ...newStates[targetObject] };
+
+      // check for flip command
+      if (text.includes("flip")) {
+        state.targetRotation = {
+          x: state.rotation.x + Math.PI,
+          y: state.rotation.y,
+          z: state.rotation.z,
+        };
+        state.action = "flip";
+      }
+
+      // check for spin command
+      if (text.includes("spin")) {
+        state.targetRotation = {
+          x: state.rotation.x,
+          y: state.rotation.y + Math.PI * 2,
+          z: state.rotation.z,
+        };
+        state.action = "spin";
+      }
+
+      // check for reset command
+      if (text.includes("reset")) {
+        state.targetRotation = { x: 0, y: 0, z: 0 };
+        state.rotation = { x: 0, y: 0, z: 0 };
+        state.action = "reset";
+        state.color = 
+          targetObject === "bed" ? "#8b7355" : 
+          targetObject === "desk" ? "#6b5d4f" : 
+          targetObject === "drawer" ? "#5a4a3a" :
+          "#ff6600"; // campfire default color
+      }
+
+      // check for color changes
+      Object.keys(colorMap).forEach((colorName) => {
+        if (text.includes(colorName)) {
+          state.color = colorMap[colorName];
+        }
+      });
+
+      newStates[targetObject] = state;
+      return newStates;
+    });
+  }, [messages]);
 
   useEffect(() => {
     connect();
@@ -171,7 +297,7 @@ export default function Page() {
 
       {/* Main Scene Area */}
       <main className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#101010] to-[#181818] relative">
-        <SceneCanvas />
+        <SceneCanvas objectStates={objectStates} setObjectStates={setObjectStates} />
       </main>
 
       {/* Story Text Area */}
