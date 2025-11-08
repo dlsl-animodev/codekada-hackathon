@@ -43,7 +43,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-gray-100 font-serif">
+    <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-gray-100">
       {/* Header */}
       <div className="relative mx-auto my-3 max-w-2xl">
         {/* Wooden Tavern Sign */}
@@ -64,7 +64,7 @@ export default function Page() {
           <div className="relative px-6 py-4">
             <header className="text-center">
               <div className="text-3xl mb-1"></div>
-              <h1 className="text-2xl font-serif font-bold text-yellow-100 tracking-wide mb-1 drop-shadow-[2px_2px_4px_rgba(0,0,0,0.8)] [text-shadow:_1px_1px_2px_rgb(0_0_0_/_80%)]">
+              <h1 className="text-2xl font-heading font-bold text-yellow-100 tracking-wide mb-1 drop-shadow-[2px_2px_4px_rgba(0,0,0,0.8)] [text-shadow:_1px_1px_2px_rgb(0_0_0_/_80%)]">
                 {currentRoom.name}
               </h1>
               <p className="text-xs text-yellow-200/90 italic font-serif">
