@@ -109,7 +109,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
             <div className="relative z-10 h-full max-w-6xl mx-auto flex flex-col items-center justify-center px-6">
                 <div className="flex flex-col items-center justify-center gap-8 p-12 rounded-3xl bg-gradient-to-br from-black/20 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl max-w-3xl transform  transition-transform duration-300">
                     {/* Title with modern styling */}
-                    <h1 className="text-center text-6xl md:text-7xl font-bold bg-gradient-to-r from-white via-[#FAC638] to-white bg-clip-text text-transparent leading-tight">
+                    <h1 className="text-center text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-[#FAC638] to-white bg-clip-text text-transparent leading-tight">
                         The Case of the
                         <br />
                         <span className="text-[#FAC638]">
