@@ -23,7 +23,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-gray-100 font-serif">
+    <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-gray-100">
       {/* Header */}
       <div className="relative mx-auto my-3 max-w-2xl">
         {/* Wooden Tavern Sign */}
@@ -45,7 +45,7 @@ export default function Page() {
             <header className="text-center">
               <div className="text-3xl mb-1">🔍</div>
 
-              <h1 className="text-2xl font-serif font-bold text-yellow-100 tracking-wide mb-1 drop-shadow-[2px_2px_4px_rgba(0,0,0,0.8)] [text-shadow:_1px_1px_2px_rgb(0_0_0_/_80%)]">
+              <h1 className="text-2xl font-heading font-bold text-yellow-100 tracking-wide mb-1 drop-shadow-[2px_2px_4px_rgba(0,0,0,0.8)] [text-shadow:_1px_1px_2px_rgb(0_0_0_/_80%)]">
                 {currentRoom.name}
               </h1>
 
@@ -79,10 +79,10 @@ export default function Page() {
 
       {/* Story Text Area */}
       <section className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto">
-        <h2 className="text-xl font-semibold text-yellow-500 mb-2">
+        <h2 className="text-xl font-heading font-semibold text-yellow-500 mb-2">
           Case Notes:
         </h2>
-        <pre className="whitespace-pre-wrap text-gray-300 leading-relaxed">
+        <pre className="whitespace-pre-wrap font-serif text-gray-300 leading-relaxed">
           {storyText}
         </pre>
       </section>
@@ -95,11 +95,11 @@ export default function Page() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          className="flex-1 bg-[#0f0f0f] text-gray-200 border border-yellow-700/40 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-500 placeholder-gray-500"
+          className="flex-1 bg-[#0f0f0f] text-gray-200 border border-yellow-700/40 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-500 placeholder-gray-500 font-sans"
         />
         <button
           onClick={handleSend}
-          className="bg-yellow-600 hover:bg-yellow-700 transition text-black font-semibold px-6 py-3 rounded-lg shadow-md"
+          className="bg-yellow-600 hover:bg-yellow-700 transition text-black font-sans font-semibold px-6 py-3 rounded-lg shadow-md"
         >
           Send
         </button>
