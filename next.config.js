@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {},
   reactStrictMode: true,
   transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
   webpack: (config, { isServer }) => {
