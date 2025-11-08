@@ -5,13 +5,11 @@ An interactive browser-based escape room game with AI guidance, voice commands, 
 ## Features
 
 - Isometric 3D room rendering with React Three Fiber
-- AI-powered hints and puzzle validation via Gemini Live API
-- Voice input support using Web Speech API
+- AI-powered hints via Gemini Live API (voice inputs)
+- Voice output support using Web Speech API
 - Text chat fallback for AI interaction
 - Interactive objects with visual feedback
-- Simple puzzle mechanics (safe, painting, desk)
 - Responsive UI with TailwindCSS
-- Vercel-ready deployment
 
 ## Tech Stack
 
