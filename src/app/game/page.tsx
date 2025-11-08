@@ -6,14 +6,8 @@ import { useGeminiLive } from "@/hooks/useGeminiLive";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import SceneCanvas from "@/components/game/scene-canvas";
-
-// object state type for bedroom objects
-interface ObjectState {
-  rotation: { x: number; y: number; z: number };
-  targetRotation: { x: number; y: number; z: number };
-  action: string;
-  color: string;
-}
+import { World } from "@/hooks/world";
+import * as THREE from "three";
 
 const mockRoom = {
   name: "Lady Eleanor's Bedroom",
@@ -21,228 +15,408 @@ const mockRoom = {
     "Moonlight filters through the curtains. The jewelry box sits open on the vanity empty, save for a broken clasp.",
 };
 
-// interactive box component
-function InteractiveBox({ action }: { action: string }) {
-    const meshRef = useRef<any>(null);
-    const [rotation, setRotation] = useState([0, 0, 0]);
-    const [isFlipping, setIsFlipping] = useState(false);
-    const [targetRotation, setTargetRotation] = useState([0, 0, 0]);
-    const [color, setColor] = useState("orange");
-
-    // available colors for the box
-    const colorMap: { [key: string]: string } = {
-        red: "#ff0000",
-        blue: "#0066ff",
-        green: "#00ff00",
-        yellow: "#ffff00",
-        orange: "#ff8800",
-        purple: "#9900ff",
-        pink: "#ff0088",
-        cyan: "#00ffff",
-        white: "#ffffff",
-        black: "#000000",
-        gold: "#ffd700",
-        silver: "#c0c0c0",
-    };
-
-    // detect commands and trigger actions
-    useEffect(() => {
-        const lowerAction = action.toLowerCase();
-
-        // check for color changes
-        for (const colorName in colorMap) {
-            if (lowerAction.includes(colorName)) {
-                setColor(colorMap[colorName]);
-                console.log(`changing box color to ${colorName}`);
-                break;
-            }
-        }
-
-        // check for rotation commands
-        if (lowerAction.includes('flip') || lowerAction.includes('rotate')) {
-            // flip the box 180 degrees
-            setTargetRotation([Math.PI, 0, 0]);
-            setIsFlipping(true);
-            console.log('flipping box');
-        } else if (lowerAction.includes('spin') || lowerAction.includes('turn')) {
-            // spin the box 360 degrees
-            setTargetRotation([rotation[0] + Math.PI * 2, rotation[1], rotation[2]]);
-            setIsFlipping(true);
-            console.log('spinning box');
-        } else if (lowerAction.includes('reset') || lowerAction.includes('normal')) {
-            // reset to original position
-            setTargetRotation([0, 0, 0]);
-            setIsFlipping(true);
-            setColor("orange");
-            console.log('resetting box');
-        }
-    }, [action]);
-
-    // animate rotation
-    useFrame(() => {
-        if (meshRef.current && isFlipping) {
-            // smooth interpolation to target rotation
-            meshRef.current.rotation.x += (targetRotation[0] - meshRef.current.rotation.x) * 0.1;
-            meshRef.current.rotation.y += (targetRotation[1] - meshRef.current.rotation.y) * 0.1;
-            meshRef.current.rotation.z += (targetRotation[2] - meshRef.current.rotation.z) * 0.1;
-
-            // check if reached target
-            const diff = Math.abs(targetRotation[0] - meshRef.current.rotation.x);
-            if (diff < 0.01) {
-                setIsFlipping(false);
-                setRotation([meshRef.current.rotation.x, meshRef.current.rotation.y, meshRef.current.rotation.z]);
-            }
-        } else if (meshRef.current) {
-            // gentle idle rotation when not flipping
-            meshRef.current.rotation.y += 0.005;
-        }
-    });
-
-    return (
-        <mesh ref={meshRef}>
-            <boxGeometry args={[2, 2, 2]} />
-            <meshStandardMaterial color={color} />
-        </mesh>
-    );
-}
-
 export default function Page() {
   const [message, setMessage] = useState("");
   const [currentRoom, setCurrentRoom] = useState(mockRoom);
+  const [inventory, setInventory] = useState<string[]>([]);
+  const playerRef = useRef<any>(null);
   const {
     messages,
     isConnected,
     isListening,
     isProcessing,
     isSpeaking,
+    detectiveThought,
     connect,
     disconnect,
     startListening,
     stopListening,
     sendText,
     stopSpeaking,
+    registerTool,
+    unregisterTool,
   } = useGeminiLive();
-
-  // object states for bedroom furniture
-  const [objectStates, setObjectStates] = useState<{
-    bed: ObjectState;
-    desk: ObjectState;
-    drawer: ObjectState;
-    campfire: ObjectState;
-  }>({
-    bed: {
-      rotation: { x: 0, y: 0, z: 0 },
-      targetRotation: { x: 0, y: 0, z: 0 },
-      action: "",
-      color: "#8b7355",
-    },
-    desk: {
-      rotation: { x: 0, y: 0, z: 0 },
-      targetRotation: { x: 0, y: 0, z: 0 },
-      action: "",
-      color: "#6b5d4f",
-    },
-    drawer: {
-      rotation: { x: 0, y: 0, z: 0 },
-      targetRotation: { x: 0, y: 0, z: 0 },
-      action: "",
-      color: "#5a4a3a",
-    },
-    campfire: {
-      rotation: { x: 0, y: 0, z: 0 },
-      targetRotation: { x: 0, y: 0, z: 0 },
-      action: "",
-      color: "#ff6600",
-    },
-  });
-
-  // color map for objects
-  const colorMap: { [key: string]: string } = {
-    red: "#ff0000",
-    blue: "#0066ff",
-    green: "#00ff00",
-    yellow: "#ffff00",
-    orange: "#ff8800",
-    purple: "#9900ff",
-    pink: "#ff69b4",
-    cyan: "#00ffff",
-    white: "#ffffff",
-    black: "#000000",
-    gold: "#ffd700",
-    silver: "#c0c0c0",
-    brown: "#8b7355",
-  };
-
-  // detect commands for bedroom objects
-  useEffect(() => {
-    if (messages.length === 0) return;
-
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role !== "user") return;
-
-    const text = lastMessage.text.toLowerCase();
-
-    // determine which object is being referenced
-    let targetObject: "bed" | "desk" | "drawer" | "campfire" | null = null;
-    if (text.includes("bed")) targetObject = "bed";
-    else if (text.includes("desk")) targetObject = "desk";
-    else if (text.includes("drawer")) targetObject = "drawer";
-    else if (text.includes("campfire") || text.includes("fire") || text.includes("camp")) targetObject = "campfire";
-
-    if (!targetObject) return;
-
-    setObjectStates((prev) => {
-      const newStates = { ...prev };
-      const state = { ...newStates[targetObject] };
-
-      // check for flip command
-      if (text.includes("flip")) {
-        state.targetRotation = {
-          x: state.rotation.x + Math.PI,
-          y: state.rotation.y,
-          z: state.rotation.z,
-        };
-        state.action = "flip";
-      }
-
-      // check for spin command
-      if (text.includes("spin")) {
-        state.targetRotation = {
-          x: state.rotation.x,
-          y: state.rotation.y + Math.PI * 2,
-          z: state.rotation.z,
-        };
-        state.action = "spin";
-      }
-
-      // check for reset command
-      if (text.includes("reset")) {
-        state.targetRotation = { x: 0, y: 0, z: 0 };
-        state.rotation = { x: 0, y: 0, z: 0 };
-        state.action = "reset";
-        state.color = 
-          targetObject === "bed" ? "#8b7355" : 
-          targetObject === "desk" ? "#6b5d4f" : 
-          targetObject === "drawer" ? "#5a4a3a" :
-          "#ff6600"; // campfire default color
-      }
-
-      // check for color changes
-      Object.keys(colorMap).forEach((colorName) => {
-        if (text.includes(colorName)) {
-          state.color = colorMap[colorName];
-        }
-      });
-
-      newStates[targetObject] = state;
-      return newStates;
-    });
-  }, [messages]);
 
   useEffect(() => {
     connect();
     return () => disconnect();
   }, []);
+
+  // register tool callbacks for gemini to use
+  useEffect(() => {
+    if (!isConnected) return;
+
+    // helper function to get color hex value
+    const getColorHex = (colorName: string): string => {
+      const colorMap: { [key: string]: string } = {
+        red: "#ff0000",
+        blue: "#0066ff",
+        green: "#00ff00",
+        yellow: "#ffff00",
+        orange: "#ff8800",
+        purple: "#9900ff",
+        pink: "#ff69b4",
+        cyan: "#00ffff",
+        white: "#ffffff",
+        black: "#000000",
+        gold: "#ffd700",
+        silver: "#c0c0c0",
+        brown: "#8b7355",
+      };
+      return colorMap[colorName.toLowerCase()] || colorName;
+    };
+
+    // tool: get scene snapshot
+    registerTool("getSceneSnapshot", () => {
+      console.log("tool called: getSceneSnapshot()");
+      const snapshot = World.getSnapshot();
+      return {
+        success: true,
+        objectCount: snapshot.length,
+        objects: snapshot,
+      };
+    });
+
+    // tool: get object info
+    registerTool("getObjectInfo", ({ objectName }: { objectName: string }) => {
+      console.log(`tool called: getObjectInfo(${objectName})`);
+
+      const obj = World.getObjectByLabel(objectName.toLowerCase());
+      if (!obj) {
+        return { success: false, message: `object '${objectName}' not found in world` };
+      }
+
+      const pos = new THREE.Vector3();
+      const rot = new THREE.Euler();
+      const scl = new THREE.Vector3();
+      obj.getWorldPosition(pos);
+      obj.getWorldQuaternion(new THREE.Quaternion());
+      obj.getWorldScale(scl);
+
+      let colorHex: string | undefined;
+      if ((obj as any).isMesh && (obj as any).material) {
+        const materials = Array.isArray((obj as any).material) ? (obj as any).material : [(obj as any).material];
+        const matWithColor = materials.find((m: any) => m && m.color);
+        if (matWithColor && matWithColor.color) {
+          colorHex = "#" + matWithColor.color.getHexString();
+        }
+      }
+
+      return {
+        success: true,
+        objectName,
+        type: obj.type,
+        position: [pos.x, pos.y, pos.z],
+        rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+        scale: [scl.x, scl.y, scl.z],
+        color: colorHex,
+      };
+    });
+
+    // tool: get player position
+    registerTool("getPlayerPosition", () => {
+      console.log("tool called: getPlayerPosition()");
+
+      if (!playerRef.current) {
+        return { success: false, message: "player not available" };
+      }
+
+      const playerObj = playerRef.current.getObject3D?.();
+      if (!playerObj) {
+        return { success: false, message: "player object not available" };
+      }
+
+      const pos = new THREE.Vector3();
+      playerObj.getWorldPosition(pos);
+
+      return {
+        success: true,
+        position: [pos.x, pos.y, pos.z],
+      };
+    });
+
+    // tool: list scene objects
+    registerTool("listSceneObjects", () => {
+      console.log("tool called: listSceneObjects()");
+      const snapshot = World.getSnapshot();
+      const namedObjects = snapshot.filter(obj => obj.name && obj.name.length > 0);
+
+      return {
+        success: true,
+        count: namedObjects.length,
+        objects: namedObjects.map(obj => ({
+          name: obj.name,
+          type: obj.type,
+          position: obj.position,
+        })),
+      };
+    });
+
+    // tool: change object color
+    registerTool("changeObjectColor", ({ objectName, color }: { objectName: string; color: string }) => {
+      console.log(`tool called: changeObjectColor(${objectName}, ${color})`);
+
+      const obj = World.getObjectByLabel(objectName.toLowerCase());
+      if (!obj) {
+        return { success: false, message: `object '${objectName}' not found in world` };
+      }
+
+      const colorValue = getColorHex(color);
+
+      // apply color to mesh material
+      if ((obj as any).isMesh && (obj as any).material) {
+        const materials = Array.isArray((obj as any).material) ? (obj as any).material : [(obj as any).material];
+        materials.forEach((mat: any) => {
+          if (mat && mat.color) {
+            mat.color.set(colorValue);
+          }
+        });
+        return { success: true, message: `changed ${objectName} to ${color}` };
+      }
+
+      // if object is a group, try to find meshes in children
+      let changed = false;
+      obj.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach((mat: any) => {
+            if (mat && mat.color) {
+              mat.color.set(colorValue);
+              changed = true;
+            }
+          });
+        }
+      });
+
+      if (changed) {
+        return { success: true, message: `changed ${objectName} to ${color}` };
+      }
+
+      return { success: false, message: `could not change color of ${objectName}` };
+    });
+
+    // tool: rotate object
+    registerTool("rotateObject", ({ objectName, action }: { objectName: string; action: string }) => {
+      console.log(`tool called: rotateObject(${objectName}, ${action})`);
+
+      const obj = World.getObjectByLabel(objectName.toLowerCase());
+      if (!obj) {
+        return { success: false, message: `object '${objectName}' not found in world` };
+      }
+
+      if (action === "flip") {
+        obj.rotation.x += Math.PI;
+      } else if (action === "spin") {
+        obj.rotation.y += Math.PI * 2;
+      } else if (action === "reset") {
+        obj.rotation.set(0, 0, 0);
+      } else {
+        return { success: false, message: `unknown action '${action}'` };
+      }
+
+      return { success: true, message: `${action} ${objectName}` };
+    });
+
+    // tool: move player
+    registerTool("movePlayer", ({ target }: { target: string }) => {
+      console.log(`tool called: movePlayer(${target})`);
+
+      if (!playerRef.current) {
+        return { success: false, message: "player not available" };
+      }
+
+      // check if target is coordinates
+      const coordMatch = target.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/);
+      if (coordMatch) {
+        const x = parseFloat(coordMatch[1]);
+        const y = parseFloat(coordMatch[2]);
+        const z = parseFloat(coordMatch[3]);
+        playerRef.current.moveTo([x, y, z]);
+        return { success: true, message: `moving player to coordinates ${x}, ${y}, ${z}` };
+      }
+
+      // check if target is an object label
+      const targetObj = World.getObjectByLabel(target)
+      if (targetObj) {
+        const pos = new THREE.Vector3();
+        targetObj.getWorldPosition(pos);
+        playerRef.current.moveTo([pos.x, pos.y, pos.z]);
+        return { success: true, message: `moving player to ${target}` };
+      }
+
+      return { success: false, message: `unknown target '${target}'` };
+    });
+
+    // tool: inspect object
+    registerTool("inspectObject", ({ objectName }: { objectName: string }) => {
+      console.log(`tool called: inspectObject(${objectName})`);
+
+      const objectDescriptions: { [key: string]: string } = {
+        bed: "an ornate four-poster bed with velvet drapes. the bedding is disturbed, as if someone left in a hurry.",
+        desk: "a mahogany writing desk with intricate carvings. several papers are scattered across its surface.",
+        drawer: "a tall wooden drawer with brass handles. one drawer is slightly ajar.",
+        campfire: inventory.includes("match") && World.getObjectByLabel("campfire")?.visible
+          ? "a mystical campfire that burns with an otherworldly glow, casting dancing shadows across the room."
+          : "a dark campfire pit, unlit. you would need a match to light it.",
+        match: "a simple wooden match. it could be used to light something.",
+      };
+
+      const targetLower = objectName.toLowerCase();
+      const key = Object.keys(objectDescriptions).find(name => targetLower.includes(name));
+
+      if (key) {
+        return {
+          success: true,
+          objectName: key,
+          description: objectDescriptions[key],
+        };
+      }
+
+      return { success: false, message: `object '${objectName}' not found` };
+    });
+
+    // tool: unlock clue
+    registerTool("unlockClue", ({ clueId, clueText }: { clueId: string; clueText: string }) => {
+      console.log(`tool called: unlockClue(${clueId})`);
+      console.log(`🔓 clue unlocked [${clueId}]: ${clueText}`);
+
+      return {
+        success: true,
+        clueId,
+        message: `clue unlocked: ${clueText}`,
+      };
+    });
+
+    // tool: pickup object
+    registerTool("pickupObject", ({ objectName }: { objectName: string }) => {
+      console.log(`tool called: pickupObject(${objectName})`);
+
+      const obj = World.getObjectByLabel(objectName.toLowerCase());
+      if (!obj) {
+        return { success: false, message: `object '${objectName}' not found in world` };
+      }
+
+      if (inventory.includes(objectName.toLowerCase())) {
+        return { success: false, message: `you already have the ${objectName}` };
+      }
+
+      // check proximity
+      if (!playerRef.current) {
+        return { success: false, message: "player not available" };
+      }
+
+      const playerObj = playerRef.current.getObject3D?.();
+      if (!playerObj) {
+        return { success: false, message: "player object not available" };
+      }
+
+      const playerPos = new THREE.Vector3();
+      const objPos = new THREE.Vector3();
+      playerObj.getWorldPosition(playerPos);
+      obj.getWorldPosition(objPos);
+
+      const distance = playerPos.distanceTo(objPos);
+      const pickupRange = 2.0;
+
+      if (distance > pickupRange) {
+        playerRef.current.moveTo([objPos.x, objPos.y, objPos.z]);
+        return {
+          success: false,
+          message: `moving closer to ${objectName} first. try picking it up again once you're near it.`,
+          needsRetry: true,
+        };
+      }
+
+      obj.visible = false;
+      setInventory(prev => [...prev, objectName.toLowerCase()]);
+
+      return {
+        success: true,
+        message: `picked up ${objectName}`,
+        inventory: [...inventory, objectName.toLowerCase()],
+      };
+    });
+
+    // tool: light campfire
+    registerTool("lightCampfire", () => {
+      console.log("tool called: lightCampfire()");
+
+      if (!inventory.includes("match") && !inventory.includes("match_object")) {
+        return { success: false, message: "you need a match to light the campfire" };
+      }
+
+      const campfire = World.getObjectByLabel("campfire");
+      const campfireFire = World.getObjectByLabel("campfire_fire");
+
+      if (!campfire || !campfireFire) {
+        return { success: false, message: "campfire not found in the scene" };
+      }
+
+      // check proximity
+      if (!playerRef.current) {
+        return { success: false, message: "player not available" };
+      }
+
+      const playerObj = playerRef.current.getObject3D?.();
+      if (!playerObj) {
+        return { success: false, message: "player object not available" };
+      }
+
+      const playerPos = new THREE.Vector3();
+      const campfirePos = new THREE.Vector3();
+      playerObj.getWorldPosition(playerPos);
+      campfire.getWorldPosition(campfirePos);
+
+      const distance = playerPos.distanceTo(campfirePos);
+      const lightRange = 2.5;
+
+      if (distance > lightRange) {
+        playerRef.current.moveTo([campfirePos.x, campfirePos.y, campfirePos.z]);
+        return {
+          success: false,
+          message: `moving closer to the campfire first. try lighting it again once you're near it.`,
+          needsRetry: true,
+        };
+      }
+
+      campfire.visible = true;
+      campfireFire.visible = true;
+
+      return {
+        success: true,
+        message: "the campfire ignites with a warm, flickering glow",
+      };
+    });
+
+    // tool: check inventory
+    registerTool("checkInventory", () => {
+      console.log("tool called: checkInventory()");
+
+      return {
+        success: true,
+        inventory: inventory,
+        itemCount: inventory.length,
+        message: inventory.length > 0
+          ? `you are carrying: ${inventory.join(", ")}`
+          : "your inventory is empty",
+      };
+    });
+
+    return () => {
+      unregisterTool("getSceneSnapshot");
+      unregisterTool("getObjectInfo");
+      unregisterTool("getPlayerPosition");
+      unregisterTool("listSceneObjects");
+      unregisterTool("changeObjectColor");
+      unregisterTool("rotateObject");
+      unregisterTool("movePlayer");
+      unregisterTool("inspectObject");
+      unregisterTool("unlockClue");
+      unregisterTool("pickupObject");
+      unregisterTool("lightCampfire");
+      unregisterTool("checkInventory");
+    };
+  }, [isConnected, inventory]);
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -257,6 +431,10 @@ export default function Page() {
       startListening();
     }
   };
+
+  useEffect(() => {
+    (window as any).World = World;
+  }, [])
 
    return (
     <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-gray-100">
@@ -297,7 +475,40 @@ export default function Page() {
 
       {/* Main Scene Area */}
       <main className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#101010] to-[#181818] relative">
-        <SceneCanvas objectStates={objectStates} setObjectStates={setObjectStates} />
+        <SceneCanvas playerRef={playerRef} />
+
+        {/* detective thoughts display */}
+        {detectiveThought && (
+          <div className="absolute top-4 left-4 bg-black/80 border border-yellow-700/40 rounded-lg p-4 max-w-[300px]">
+            <h3 className="text-yellow-500 font-semibold mb-2 text-sm flex items-center gap-2">
+              <span>💭</span>
+              <span>detective's thoughts</span>
+            </h3>
+            <div className={`text-sm ${
+              detectiveThought.priority === 'critical' ? 'text-red-400' :
+              detectiveThought.priority === 'high' ? 'text-orange-400' :
+              detectiveThought.priority === 'medium' ? 'text-yellow-300' :
+              'text-gray-300'
+            }`}>
+              <p className="italic leading-relaxed">{detectiveThought.thought}</p>
+            </div>
+          </div>
+        )}
+
+        {/* inventory display */}
+        {inventory.length > 0 && (
+          <div className="absolute top-4 right-4 bg-black/80 border border-yellow-700/40 rounded-lg p-4 min-w-[200px]">
+            <h3 className="text-yellow-500 font-semibold mb-2 text-sm">inventory</h3>
+            <div className="space-y-1">
+              {inventory.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-gray-300 text-sm">
+                  <span className="text-yellow-500">▪</span>
+                  <span className="capitalize">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Story Text Area */}
