@@ -1,7 +1,9 @@
 ﻿"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 
 const mockRoom = {
   name: "Lady Eleanor's Bedroom",
@@ -83,11 +85,19 @@ export default function Page() {
 
       {/* Main Scene Area */}
       <main className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#101010] to-[#181818] relative">
-        <div className="w-[80%] h-[60vh] border-2 border-yellow-700/50 rounded-xl bg-[#111] shadow-2xl flex items-center justify-center">
-          <p className="text-gray-400 italic">
-            (Scene of {currentRoom.name} will appear here  rendered with Three.js)
-          </p>
-        </div>
+        <Canvas>
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[5, 5, 5]} intensity={1} />
+          <Suspense fallback={null}>
+            {/* 3D Room Model would go here */}
+            {/* for now, just render a placeholder box. */}
+            <mesh>
+              <boxGeometry args={[2, 2, 2]} />
+              <meshStandardMaterial color="orange" />
+            </mesh>
+          </Suspense>
+          <OrbitControls />
+        </Canvas>
       </main>
 
       {/* Story Text Area */}
