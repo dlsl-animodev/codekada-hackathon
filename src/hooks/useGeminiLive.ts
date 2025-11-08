@@ -14,6 +14,7 @@ export function useGeminiLive() {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -21,6 +22,7 @@ export function useGeminiLive() {
   const currentTextPartsRef = useRef<string[]>([]);
   const userTranscriptRef = useRef<string>('');
   const recognitionRef = useRef<any>(null);
+  const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // initialize gemini live session
   const connect = async () => {
@@ -100,6 +102,10 @@ export function useGeminiLive() {
           ...prev,
           { role: 'assistant', text: fullText },
         ]);
+
+        // speak the ai's response
+        speakText(fullText);
+
         currentTextPartsRef.current = [];
       }
 
@@ -107,6 +113,59 @@ export function useGeminiLive() {
         playAudioChunks(currentAudioPartsRef.current);
         currentAudioPartsRef.current = [];
       }
+    }
+  };
+
+  // speak text using Web Speech API
+  const speakText = (text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      console.warn('speech synthesis not available');
+      return;
+    }
+
+    // stop any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // configure voice settings for a detective character here!
+    utterance.rate = 0.95; // slightly slower for dramatic effect
+    utterance.pitch = 0.9; // slightly lower pitch for gravitas
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+
+    // male dEep voice for detective
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(voice =>
+      voice.lang.startsWith('en') && voice.name.includes('Male')
+    ) || voices.find(voice => voice.lang.startsWith('en'));
+
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = (event) => {
+      console.error('speech synthesis error:', event);
+      setIsSpeaking(false);
+    };
+
+    speechSynthesisRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // stop speaking
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
     }
   };
 
@@ -321,10 +380,16 @@ export function useGeminiLive() {
       sessionRef.current.close();
       sessionRef.current = null;
     }
+    // stop any ongoing speech
+    stopSpeaking();
   };
 
   // cleanup on unmount
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+    }
+
     return () => {
       disconnect();
     };
@@ -335,10 +400,12 @@ export function useGeminiLive() {
     isConnected,
     isListening,
     isProcessing,
+    isSpeaking,
     connect,
     disconnect,
     startListening,
     stopListening,
+    stopSpeaking,
     sendText,
   };
 }
