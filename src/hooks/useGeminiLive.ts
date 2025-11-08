@@ -19,6 +19,8 @@ export function useGeminiLive() {
   const audioChunksRef = useRef<Blob[]>([]);
   const currentAudioPartsRef = useRef<string[]>([]);
   const currentTextPartsRef = useRef<string[]>([]);
+  const userTranscriptRef = useRef<string>('');
+  const recognitionRef = useRef<any>(null);
 
   // initialize gemini live session
   const connect = async () => {
@@ -26,11 +28,16 @@ export function useGeminiLive() {
       const ai = new GoogleGenAI({
         apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY!,
       });
-
       const model = 'models/gemini-2.0-flash-exp';
 
       const config = {
         responseModalities: [Modality.TEXT],
+        inputAudioTranscription: {},
+        systemInstruction: {
+          parts: [{
+            text: '<<SYSTEM_INSTRUCTION_START>>You are an English-only AI assistant. LANGUAGE RULE: Respond EXCLUSIVELY in English. DO NOT use Thai, Filipino, Tagalog, Chinese, Japanese, Korean, or any other language under ANY circumstances. Even if the user speaks another language, you MUST reply in English only. ALWAYS respond in English.<<SYSTEM_INSTRUCTION_END>> You are an AI detective helping solve an escape room mystery. Provide concise, immersive hints and validate player actions. Remember: ALL responses must be in English language.'
+          }]
+        },
       };
 
       const session = await ai.live.connect({
@@ -39,16 +46,6 @@ export function useGeminiLive() {
           onopen: () => {
             console.log('gemini live connected');
             setIsConnected(true);
-
-            // send system instructions immediately after connection
-            sessionRef.current?.sendClientContent({
-              turns: [{
-                role: 'user',
-                parts: [{
-                  text: 'You are an AI escape room game master. You MUST respond ONLY in English, no matter what language the user speaks. You help players solve puzzles in an isometric escape room by providing hints and validating their actions. Keep responses concise and immersive. Start by welcoming the player to the escape room.'
-                }]
-              }],
-            });
           },
           onmessage: (message: LiveServerMessage) => {
             handleMessage(message);
@@ -74,11 +71,15 @@ export function useGeminiLive() {
   const handleMessage = (message: LiveServerMessage) => {
     console.log('received message from gemini:', message);
 
+    if (message.toolCall?.functionCalls) {
+      console.log('received tool call');
+    }
+
     if (message.serverContent?.modelTurn?.parts) {
-      const part = message.serverContent.modelTurn.parts[0];
+      const parts = message.serverContent.modelTurn.parts;
+      const part = parts[0];
 
       if (part?.text) {
-       // console.log('received text chunk:', part.text);
         currentTextPartsRef.current.push(part.text);
       }
 
@@ -90,12 +91,11 @@ export function useGeminiLive() {
 
     // check if turn is complete
     if (message.serverContent?.turnComplete) {
-//      console.log('turn complete');
       setIsProcessing(false);
 
       if (currentTextPartsRef.current.length > 0) {
         const fullText = currentTextPartsRef.current.join('');
-        console.log('complete text:', fullText);
+
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', text: fullText },
@@ -194,6 +194,39 @@ export function useGeminiLive() {
       const mediaRecorder = new MediaRecorder(stream);
 
       audioChunksRef.current = [];
+      userTranscriptRef.current = '';
+
+      // Web Speech API for now since Gemini Live Transcription is not working
+      if (typeof window !== 'undefined') {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-US';
+
+          recognition.onresult = (event: any) => {
+            let transcript = '';
+            for (let i = 0; i < event.results.length; i++) {
+              if (event.results[i].isFinal) {
+                transcript += event.results[i][0].transcript;
+              }
+            }
+            if (transcript) {
+              userTranscriptRef.current = transcript;
+            }
+          };
+
+          recognition.onerror = (event: any) => {
+            console.error('speech recognition error:', event.error);
+          };
+
+          recognition.start();
+          recognitionRef.current = recognition;
+        } else {
+          console.warn('web speech api not available');
+        }
+      }
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -203,6 +236,13 @@ export function useGeminiLive() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         await sendAudioToGemini(audioBlob);
         stream.getTracks().forEach(track => track.stop());
       };
@@ -237,7 +277,10 @@ export function useGeminiLive() {
     reader.onloadend = () => {
       const base64Audio = (reader.result as string).split(',')[1];
 
-      console.log('sending audio data to gemini');
+      const displayText = userTranscriptRef.current || '[voice input]';
+
+      // add user message with transcription
+      setMessages((prev) => [...prev, { role: 'user' as const, text: displayText }]);
 
       sessionRef.current?.sendClientContent({
         turns: [
@@ -254,8 +297,6 @@ export function useGeminiLive() {
           },
         ],
       });
-
-      setMessages((prev) => [...prev, { role: 'user', text: '[voice message sent]' }]);
     };
     reader.readAsDataURL(audioBlob);
   };
@@ -266,8 +307,11 @@ export function useGeminiLive() {
 
     setMessages((prev) => [...prev, { role: 'user', text }]);
 
+    // add language reminder to help enforce english responses
+    const messageWithReminder = `[RESPOND IN ENGLISH ONLY] ${text}`;
+
     sessionRef.current.sendClientContent({
-      turns: [text],
+      turns: [messageWithReminder],
     });
   };
 
