@@ -580,7 +580,7 @@ export function useGeminiLive() {
   const playAudioChunks = (audioParts: string[]) => {
     console.log("playing audio chunks:", audioParts.length, "parts");
     try {
-      // convert pcm to wav with lower quality settings
+      // convert pcm to wav
       const pcmData = audioParts.map((part) => {
         const binary = atob(part);
         const bytes = new Uint8Array(binary.length);
@@ -591,8 +591,8 @@ export function useGeminiLive() {
       });
 
       const totalLength = pcmData.reduce((sum, arr) => sum + arr.length, 0);
-      // use 16000 Hz sample rate for faster loading (lower quality but faster)
-      const wavHeader = createWavHeader(totalLength, 16000, 1, 16);
+      // use 24000 Hz to match gemini's output sample rate
+      const wavHeader = createWavHeader(totalLength, 24000, 1, 16);
 
       const combinedData = new Uint8Array(wavHeader.length + totalLength);
       combinedData.set(wavHeader, 0);

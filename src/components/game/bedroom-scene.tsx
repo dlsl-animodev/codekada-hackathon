@@ -7,9 +7,10 @@ import { World } from "@/hooks/world";
 
 interface BedroomSceneProps {
   playerRef: React.MutableRefObject<any>;
+  onLoad?: () => void;
 }
 
-export default function BedroomScene({ playerRef }: BedroomSceneProps, props: any) {
+export default function BedroomScene({ playerRef, onLoad }: BedroomSceneProps, props: any) {
   const { scene } = useGLTF("/models/bedroom.glb") as any;
   const bedRef = useRef<THREE.Object3D | null>(null);
   const deskRef = useRef<THREE.Object3D | null>(null);
@@ -31,18 +32,21 @@ export default function BedroomScene({ playerRef }: BedroomSceneProps, props: an
         bedRef.current = child;
         console.log("found bed:", child.name);
         World.registerObject("bed", child);
+        World.registerCollidable(child, 1.5);
       }
 
       if (childName.includes("desk") && !deskRef.current) {
         deskRef.current = child;
         console.log("found desk:", child.name);
         World.registerObject("desk", child);
+        World.registerCollidable(child, 1.0);
       }
 
       if (childName.includes("drawer") && !drawerRef.current) {
         drawerRef.current = child;
         console.log("found drawer:", child.name);
         World.registerObject("drawer", child);
+        World.registerCollidable(child, 0.8);
       }
 
       if (childName.includes("match") && childName.includes("object")) {
@@ -55,6 +59,7 @@ export default function BedroomScene({ playerRef }: BedroomSceneProps, props: an
         campfireRef.current = child;
         console.log("found campfire:", child.name);
         World.registerObject("campfire", child);
+        World.registerCollidable(child, 0.6);
         child.visible = false;
       }
 
@@ -65,7 +70,15 @@ export default function BedroomScene({ playerRef }: BedroomSceneProps, props: an
         child.visible = false;
       }
     });
-  }, [scene]);
+
+    // trigger onload callback after scene is ready
+    if (onLoad) {
+      const timer = setTimeout(() => {
+        onLoad();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [scene, onLoad]);
 
   // register player in world when available
   useEffect(() => {

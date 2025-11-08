@@ -1,7 +1,8 @@
 import { OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useState } from "react";
 import BedroomScene from "./bedroom-scene";
+import LoadingAnimation from "../ui/LoadingAnimation";
 import * as THREE from "three";
 
 interface SceneCanvasProps {
@@ -55,8 +56,12 @@ function CameraFollower({ playerRef }: { playerRef: React.MutableRefObject<any> 
 }
 
 export default function SceneCanvas({ playerRef }: SceneCanvasProps) {
+  const [isLoading, setIsLoading] = useState(true);
+
   return (
     <div className="absolute inset-0">
+      {isLoading && <LoadingAnimation />}
+      
       <Canvas
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
@@ -72,7 +77,7 @@ export default function SceneCanvas({ playerRef }: SceneCanvasProps) {
         />
 
         <Suspense fallback={null}>
-          <BedroomScene playerRef={playerRef} />
+          <BedroomScene playerRef={playerRef} onLoad={() => setIsLoading(false)} />
         </Suspense>
       </Canvas>
     </div>

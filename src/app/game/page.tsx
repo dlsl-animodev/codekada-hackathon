@@ -315,11 +315,25 @@ export default function Page() {
       playerObj.getWorldPosition(playerPos);
       obj.getWorldPosition(objPos);
 
-      const distance = playerPos.distanceTo(objPos);
-      const pickupRange = 2.0;
+      // calculate 2d distance (ignore y-axis) for better pickup detection
+      const dx = playerPos.x - objPos.x;
+      const dz = playerPos.z - objPos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      
+      // pickup range should account for player radius (0.5) + small reach distance
+      const pickupRange = 1.2;
 
       if (distance > pickupRange) {
-        playerRef.current.moveTo([objPos.x, objPos.y, objPos.z]);
+        // calculate a position just outside the collision boundary
+        const direction = new THREE.Vector3(dx, 0, dz).normalize();
+        const targetDistance = 0.8; // get within 0.8 units
+        const targetPos = new THREE.Vector3(
+          objPos.x + direction.x * targetDistance,
+          objPos.y,
+          objPos.z + direction.z * targetDistance
+        );
+        
+        playerRef.current.moveTo([targetPos.x, targetPos.y, targetPos.z]);
         return {
           success: false,
           message: `moving closer to ${objectName} first. try picking it up again once you're near it.`,
@@ -367,11 +381,25 @@ export default function Page() {
       playerObj.getWorldPosition(playerPos);
       campfire.getWorldPosition(campfirePos);
 
-      const distance = playerPos.distanceTo(campfirePos);
-      const lightRange = 2.5;
+      // calculate 2d distance (ignore y-axis)
+      const dx = playerPos.x - campfirePos.x;
+      const dz = playerPos.z - campfirePos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      
+      // interaction range should account for campfire collision radius (0.6) + player radius (0.5) + reach
+      const lightRange = 1.5;
 
       if (distance > lightRange) {
-        playerRef.current.moveTo([campfirePos.x, campfirePos.y, campfirePos.z]);
+        // calculate a position just outside the collision boundary
+        const direction = new THREE.Vector3(dx, 0, dz).normalize();
+        const targetDistance = 1.2; // get within 1.2 units
+        const targetPos = new THREE.Vector3(
+          campfirePos.x + direction.x * targetDistance,
+          campfirePos.y,
+          campfirePos.z + direction.z * targetDistance
+        );
+        
+        playerRef.current.moveTo([targetPos.x, targetPos.y, targetPos.z]);
         return {
           success: false,
           message: `moving closer to the campfire first. try lighting it again once you're near it.`,
