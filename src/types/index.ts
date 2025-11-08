@@ -1,9 +1,9 @@
 // game object types
-export type ObjectType = 'safe' | 'painting' | 'desk';
+export type ObjectType = "safe" | "painting" | "desk";
 
 // message types for ai conversation
 export interface Message {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp?: number;
 }
