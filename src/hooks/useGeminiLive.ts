@@ -18,6 +18,7 @@ export function useGeminiLive() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const currentAudioPartsRef = useRef<string[]>([]);
+  const currentTextPartsRef = useRef<string[]>([]);
 
   // initialize gemini live session
   const connect = async () => {
@@ -38,6 +39,16 @@ export function useGeminiLive() {
           onopen: () => {
             console.log('gemini live connected');
             setIsConnected(true);
+
+            // send system instructions immediately after connection
+            sessionRef.current?.sendClientContent({
+              turns: [{
+                role: 'user',
+                parts: [{
+                  text: 'You are an AI escape room game master. You MUST respond ONLY in English, no matter what language the user speaks. You help players solve puzzles in an isometric escape room by providing hints and validating their actions. Keep responses concise and immersive. Start by welcoming the player to the escape room.'
+                }]
+              }],
+            });
           },
           onmessage: (message: LiveServerMessage) => {
             handleMessage(message);
@@ -67,11 +78,8 @@ export function useGeminiLive() {
       const part = message.serverContent.modelTurn.parts[0];
 
       if (part?.text) {
-        console.log('received text:', part.text);
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', text: part.text! },
-        ]);
+       // console.log('received text chunk:', part.text);
+        currentTextPartsRef.current.push(part.text);
       }
 
       if (part?.inlineData) {
@@ -82,8 +90,18 @@ export function useGeminiLive() {
 
     // check if turn is complete
     if (message.serverContent?.turnComplete) {
-      console.log('turn complete, playing audio');
+//      console.log('turn complete');
       setIsProcessing(false);
+
+      if (currentTextPartsRef.current.length > 0) {
+        const fullText = currentTextPartsRef.current.join('');
+        console.log('complete text:', fullText);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', text: fullText },
+        ]);
+        currentTextPartsRef.current = [];
+      }
 
       if (currentAudioPartsRef.current.length > 0) {
         playAudioChunks(currentAudioPartsRef.current);
