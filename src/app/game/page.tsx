@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 
 const mockRoom = {
@@ -11,9 +11,97 @@ const mockRoom = {
         "Moonlight filters through the curtains. The jewelry box sits open on the vanity  empty, save for a broken clasp.",
 };
 
+// interactive box component
+function InteractiveBox({ action }: { action: string }) {
+    const meshRef = useRef<any>(null);
+    const [rotation, setRotation] = useState([0, 0, 0]);
+    const [isFlipping, setIsFlipping] = useState(false);
+    const [targetRotation, setTargetRotation] = useState([0, 0, 0]);
+    const [color, setColor] = useState("orange");
+
+    // available colors for the box
+    const colorMap: { [key: string]: string } = {
+        red: "#ff0000",
+        blue: "#0066ff",
+        green: "#00ff00",
+        yellow: "#ffff00",
+        orange: "#ff8800",
+        purple: "#9900ff",
+        pink: "#ff0088",
+        cyan: "#00ffff",
+        white: "#ffffff",
+        black: "#000000",
+        gold: "#ffd700",
+        silver: "#c0c0c0",
+    };
+
+    // detect commands and trigger actions
+    useEffect(() => {
+        const lowerAction = action.toLowerCase();
+
+        // check for color changes
+        let colorChanged = false;
+        for (const colorName in colorMap) {
+            if (lowerAction.includes(colorName)) {
+                setColor(colorMap[colorName]);
+                colorChanged = true;
+                console.log(`changing box color to ${colorName}`);
+                break;
+            }
+        }
+
+        // check for rotation commands
+        if (lowerAction.includes('flip') || lowerAction.includes('rotate')) {
+            // flip the box 180 degrees
+            setTargetRotation([Math.PI, 0, 0]);
+            setIsFlipping(true);
+            console.log('flipping box');
+        } else if (lowerAction.includes('spin') || lowerAction.includes('turn')) {
+            // spin the box 360 degrees
+            setTargetRotation([rotation[0] + Math.PI * 2, rotation[1], rotation[2]]);
+            setIsFlipping(true);
+            console.log('spinning box');
+        } else if (lowerAction.includes('reset') || lowerAction.includes('normal')) {
+            // reset to original position
+            setTargetRotation([0, 0, 0]);
+            setIsFlipping(true);
+            setColor("orange");
+            console.log('resetting box');
+        }
+    }, [action]);
+
+    // animate rotation
+    useFrame(() => {
+        if (meshRef.current && isFlipping) {
+            // smooth interpolation to target rotation
+            meshRef.current.rotation.x += (targetRotation[0] - meshRef.current.rotation.x) * 0.1;
+            meshRef.current.rotation.y += (targetRotation[1] - meshRef.current.rotation.y) * 0.1;
+            meshRef.current.rotation.z += (targetRotation[2] - meshRef.current.rotation.z) * 0.1;
+
+            // check if reached target
+            const diff = Math.abs(targetRotation[0] - meshRef.current.rotation.x);
+            if (diff < 0.01) {
+                setIsFlipping(false);
+                setRotation([meshRef.current.rotation.x, meshRef.current.rotation.y, meshRef.current.rotation.z]);
+            }
+        } else if (meshRef.current) {
+            // gentle idle rotation when not flipping
+            meshRef.current.rotation.y += 0.005;
+        }
+    });
+
+    return (
+        <mesh ref={meshRef}>
+            <boxGeometry args={[2, 2, 2]} />
+            <meshStandardMaterial color={color} />
+        </mesh>
+    );
+}
+
 export default function Page() {
     const [message, setMessage] = useState("");
     const [currentRoom, setCurrentRoom] = useState(mockRoom);
+    const [lastAction, setLastAction] = useState("");
     const {
         messages,
         isConnected,
@@ -25,6 +113,16 @@ export default function Page() {
         stopListening,
         sendText,
     } = useGeminiLive();
+
+    // detect actions from user messages
+    useEffect(() => {
+        if (messages.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage.role === 'user') {
+                setLastAction(lastMessage.text);
+            }
+        }
+    }, [messages]);
 
     useEffect(() => {
         connect();
@@ -88,12 +186,7 @@ export default function Page() {
                     <ambientLight intensity={0.5} />
                     <directionalLight position={[5, 5, 5]} intensity={1} />
                     <Suspense fallback={null}>
-                        {/* 3D Room Model would go here */}
-                        {/* For now, just render a placeholder box. */}
-                        <mesh>
-                            <boxGeometry args={[2, 2, 2]} />
-                            <meshStandardMaterial color="orange" />
-                        </mesh>
+                        <InteractiveBox action={lastAction} />
                     </Suspense>
                     <OrbitControls />
                 </Canvas>
@@ -101,9 +194,28 @@ export default function Page() {
 
             {/* Story Text Area */}
             <section className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto">
-                <h2 className="text-xl font-semibold text-yellow-500 mb-2">
-                    Case Notes:
-                </h2>
+                <div className="flex justify-between items-center mb-2">
+                    <h2 className="text-xl font-semibold text-yellow-500">
+                        Case Notes:
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Available Colors:</span>
+                        <div className="flex gap-1">
+                            {['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'cyan', 'gold', 'silver'].map((colorName) => (
+                                <div
+                                    key={colorName}
+                                    className="w-4 h-4 rounded-sm border border-gray-600 hover:cursor-pointer hover:scale-110 transition"
+                                    style={{
+                                        backgroundColor: colorName === 'gold' ? '#ffd700' :
+                                                       colorName === 'silver' ? '#c0c0c0' :
+                                                       colorName
+                                    }}
+                                    title={colorName}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
                 <div className="space-y-3">
                     {messages.length === 0 ? (
                         <p className="text-gray-400 italic">
