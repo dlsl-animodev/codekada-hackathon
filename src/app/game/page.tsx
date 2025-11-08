@@ -102,6 +102,7 @@ function InteractiveBox({ action }: { action: string }) {
 export default function Page() {
   const [message, setMessage] = useState("");
   const [currentRoom, setCurrentRoom] = useState(mockRoom);
+  const [lastAction, setLastAction] = useState("");
   const {
     messages,
     isConnected,
