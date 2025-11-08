@@ -26,11 +26,16 @@ export function useGeminiLive() {
       const ai = new GoogleGenAI({
         apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY!,
       });
-
       const model = 'models/gemini-2.0-flash-exp';
 
       const config = {
         responseModalities: [Modality.TEXT],
+        inputAudioTranscription: {},
+        systemInstruction: {
+          parts: [{
+            text: '<<SYSTEM_INSTRUCTION_START>>You are an English-only AI assistant. LANGUAGE RULE: Respond EXCLUSIVELY in English. DO NOT use Thai, Filipino, Tagalog, Chinese, Japanese, Korean, or any other language under ANY circumstances. Even if the user speaks another language, you MUST reply in English only. ALWAYS respond in English.<<SYSTEM_INSTRUCTION_END>> You are an AI detective helping solve an escape room mystery. Provide concise, immersive hints and validate player actions. Remember: ALL responses must be in English language.'
+          }]
+        },
       };
 
       const session = await ai.live.connect({
@@ -39,16 +44,6 @@ export function useGeminiLive() {
           onopen: () => {
             console.log('gemini live connected');
             setIsConnected(true);
-
-            // send system instructions immediately after connection
-            sessionRef.current?.sendClientContent({
-              turns: [{
-                role: 'user',
-                parts: [{
-                  text: 'You are an AI escape room game master. You MUST respond ONLY in English, no matter what language the user speaks. You help players solve puzzles in an isometric escape room by providing hints and validating their actions. Keep responses concise and immersive. Start by welcoming the player to the escape room.'
-                }]
-              }],
-            });
           },
           onmessage: (message: LiveServerMessage) => {
             handleMessage(message);
