@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { World } from "@/hooks/world";
 import {
   GoogleGenAI,
+  LiveConnectConfig,
   LiveServerMessage,
   MediaResolution,
   Modality,
   Session,
+  Type,
 } from "@google/genai";
 
 interface GeminiLiveMessage {
@@ -60,6 +63,10 @@ export function useGeminiLive() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentApiKeyIndex, setCurrentApiKeyIndex] = useState(0);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [detectiveThought, setDetectiveThought] = useState<{
+    thought: string;
+    priority: string;
+  } | null>(null);
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const sessionRef = useRef<Session | null>(null);
@@ -73,6 +80,7 @@ export function useGeminiLive() {
   const isConnectingRef = useRef(false);
   const shouldReconnectRef = useRef(false);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const toolCallbacksRef = useRef<Map<string, (args: any) => any>>(new Map());
 
   // initialize gemini live session with API key rotation
   const connect = async () => {
@@ -107,18 +115,192 @@ export function useGeminiLive() {
         const ai = new GoogleGenAI({
           apiKey: currentKey,
         });
-        const model = "models/gemini-2.0-flash-exp";
+        const model = "models/gemini-2.5-flash-native-audio-preview-09-2025";
 
-        const config = {
-          responseModalities: [Modality.TEXT],
+        const config: LiveConnectConfig = {
+          responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
           systemInstruction: {
             parts: [
               {
-                text: "<<SYSTEM_INSTRUCTION_START>>You are an English-only AI assistant. LANGUAGE RULE: Respond EXCLUSIVELY in English. DO NOT use Thai, Filipino, Tagalog, Chinese, Japanese, Korean, or any other language under ANY circumstances. Even if the user speaks another language, you MUST reply in English only. ALWAYS respond in English.<<SYSTEM_INSTRUCTION_END>> You are an AI detective helping solve an escape room mystery. Provide concise, immersive hints and validate player actions. Remember: ALL responses must be in English language.",
+                text: "<<SYSTEM_INSTRUCTION_START>>You are an English-only AI assistant. LANGUAGE RULE: Respond EXCLUSIVELY in English. DO NOT use Thai, Filipino, Tagalog, Chinese, Japanese, Korean, or any other language under ANY circumstances. Even if the user speaks another language, you MUST reply in English only. ALWAYS respond in English.<<SYSTEM_INSTRUCTION_END>> You are an AI detective helping solve an escape room mystery. Provide concise, immersive hints and validate player actions. Remember: ALL responses must be in English language.\n\nYou will also receive a WORLD_SNAPSHOT enclosed between [[WORLD_SNAPSHOT_START]] and [[WORLD_SNAPSHOT_END]]. It is a compact JSON representation of the current 3D scene graph (named objects, types, positions, rotations, scales, and colors). use this snapshot to reason about the world, reference objects by their names, and avoid inventing objects that are not present. if an object is missing from the snapshot, ask for clarification.\n\nYou have access to tools that allow you to interact with the game world. Use these tools to help the player solve puzzles and progress through the mystery.\n\nIMPORTANT: After each user interaction, call the 'updateDetectiveThoughts' tool to share your current thinking, observations, and deductions with the player. This helps create an immersive detective experience where the player can see your thought process.",
               },
             ],
           },
+          tools: [
+            {
+              functionDeclarations: [
+                {
+                  name: "getSceneSnapshot",
+                  description: "get a complete snapshot of all objects in the scene with their positions, rotations, scales, and colors. use this to understand the current state of the world.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {},
+                  },
+                },
+                {
+                  name: "getObjectInfo",
+                  description: "get detailed information about a specific object including its position, rotation, scale, and color.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      objectName: {
+                        type: Type.STRING,
+                        description: "the name of the object to query (e.g., 'bed', 'desk', 'drawer', 'campfire', 'player')",
+                      },
+                    },
+                    required: ["objectName"],
+                  },
+                },
+                {
+                  name: "getPlayerPosition",
+                  description: "get the current position of the player character in the scene.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {},
+                  },
+                },
+                {
+                  name: "listSceneObjects",
+                  description: "get a list of all named objects in the scene with their basic information. useful for discovering what's available to interact with.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {},
+                  },
+                },
+                {
+                  name: "changeObjectColor",
+                  description: "change the color of an object in the scene. use this when the player asks to change colors or when solving color-based puzzles.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      objectName: {
+                        type: Type.STRING,
+                        description: "the name of the object to change (e.g., 'bed', 'desk', 'drawer', 'campfire')",
+                      },
+                      color: {
+                        type: Type.STRING,
+                        description: "the color to change to (e.g., 'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'cyan', 'white', 'black', 'gold', 'silver')",
+                      },
+                    },
+                    required: ["objectName", "color"],
+                  },
+                },
+                {
+                  name: "rotateObject",
+                  description: "rotate an object in the scene. use this to flip, spin, or turn objects when investigating clues.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      objectName: {
+                        type: Type.STRING,
+                        description: "the name of the object to rotate",
+                      },
+                      action: {
+                        type: Type.STRING,
+                        description: "the rotation action: 'flip' for 180 degrees, 'spin' for 360 degrees, 'reset' to return to original position",
+                      },
+                    },
+                    required: ["objectName", "action"],
+                  },
+                },
+                {
+                  name: "movePlayer",
+                  description: "move the player character to a specific location or object in the scene.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      target: {
+                        type: Type.STRING,
+                        description: "the target location or object name (e.g., 'bed', 'desk', 'drawer', 'campfire', or coordinates like '0,0,0')",
+                      },
+                    },
+                    required: ["target"],
+                  },
+                },
+                {
+                  name: "inspectObject",
+                  description: "get detailed information about an object in the scene. use this to provide clues or descriptions.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      objectName: {
+                        type: Type.STRING,
+                        description: "the name of the object to inspect",
+                      },
+                    },
+                    required: ["objectName"],
+                  },
+                },
+                {
+                  name: "unlockClue",
+                  description: "reveal a clue or puzzle piece to the player when they discover something important.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      clueId: {
+                        type: Type.STRING,
+                        description: "the identifier for the clue being unlocked",
+                      },
+                      clueText: {
+                        type: Type.STRING,
+                        description: "the text of the clue to reveal",
+                      },
+                    },
+                    required: ["clueId", "clueText"],
+                  },
+                },
+                {
+                  name: "pickupObject",
+                  description: "pick up an object from the scene and add it to the player's inventory. this will make the object invisible.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      objectName: {
+                        type: Type.STRING,
+                        description: "the name of the object to pick up (e.g., 'match')",
+                      },
+                    },
+                    required: ["objectName"],
+                  },
+                },
+                {
+                  name: "lightCampfire",
+                  description: "light the campfire using a match. the player must have picked up the match first. this will make the campfire and fire visible.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {},
+                  },
+                },
+                {
+                  name: "checkInventory",
+                  description: "check what items the player is currently carrying in their inventory.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {},
+                  },
+                },
+                {
+                  name: "updateDetectiveThoughts",
+                  description: "update the detective's current thoughts about the case based on observations, clues discovered, and the current situation. call this after processing user messages to share your reasoning and deductions with the player.",
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      thought: {
+                        type: Type.STRING,
+                        description: "the detective's current thought or deduction about the case (e.g., 'the broken clasp suggests forced entry...', 'the campfire placement is unusual...')",
+                      },
+                      priority: {
+                        type: Type.STRING,
+                        description: "the importance level of this thought: 'low', 'medium', 'high', or 'critical'",
+                      },
+                    },
+                    required: ["thought", "priority"],
+                  },
+                },
+              ],
+            },
+          ],
         };
 
         const session = await ai.live.connect({
@@ -200,24 +382,91 @@ export function useGeminiLive() {
   const handleMessage = (message: LiveServerMessage) => {
     console.log("received message from gemini:", message);
 
+    if (message.serverContent?.outputTranscription) {
+      const transcription = message.serverContent.outputTranscription;
+      console.log("received output transcription:", transcription);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: transcription.text || "" },
+      ]);
+    }
+
+    // handle tool calls
     if (message.toolCall?.functionCalls) {
-      console.log("received tool call");
+      console.log("received tool call:", message.toolCall.functionCalls);
+
+      const functionCalls = message.toolCall.functionCalls;
+      const functionResponses = functionCalls.map((call) => {
+        const functionName = call.name || "unknown";
+        const args = call.args;
+
+        console.log(`executing tool: ${functionName}`, args);
+
+        // handle updateDetectiveThoughts specially (internal state)
+        if (functionName === "updateDetectiveThoughts") {
+          const { thought, priority } = args as { thought: string; priority: string };
+          setDetectiveThought({ thought, priority });
+          return {
+            id: call.id,
+            name: functionName,
+            response: { success: true, message: `thought updated: ${thought}` },
+          };
+        }
+
+        // get the registered callback for this tool
+        const callback = toolCallbacksRef.current.get(functionName);
+
+        if (callback) {
+          try {
+            const result = callback(args);
+            console.log(`tool ${functionName} result:`, result);
+            return {
+              id: call.id,
+              name: functionName,
+              response: result,
+            };
+          } catch (error) {
+            console.error(`error executing tool ${functionName}:`, error);
+            return {
+              id: call.id,
+              name: functionName,
+              response: { error: String(error) },
+            };
+          }
+        } else {
+          console.warn(`no callback registered for tool: ${functionName}`);
+          return {
+            id: call.id,
+            name: functionName,
+            response: { error: "tool not implemented" },
+          };
+        }
+      });
+
+      // send the function responses back to gemini
+      if (sessionRef.current && functionResponses.length > 0) {
+        sessionRef.current.sendToolResponse({
+          functionResponses,
+        });
+      }
     }
 
     if (message.serverContent?.modelTurn?.parts) {
       const parts = message.serverContent.modelTurn.parts;
-      const part = parts[0];
 
-      if (part?.text) {
-        currentTextPartsRef.current.push(part.text);
-      }
+      for (const part of parts) {
+        if (part?.text) {
+          console.log("received text part:", part.text);
+          currentTextPartsRef.current.push(part.text);
+        }
 
-      if (part?.inlineData) {
-        console.log(
-          "received audio chunk, mime type:",
-          part.inlineData.mimeType
-        );
-        currentAudioPartsRef.current.push(part.inlineData.data!);
+        if (part?.inlineData) {
+          console.log(
+            "received audio chunk, mime type:",
+            part.inlineData.mimeType
+          );
+          currentAudioPartsRef.current.push(part.inlineData.data!);
+        }
       }
     }
 
@@ -227,15 +476,9 @@ export function useGeminiLive() {
 
       if (currentTextPartsRef.current.length > 0) {
         const fullText = currentTextPartsRef.current.join("");
+        console.log("turn complete, full text:", fullText);
 
         setMessages((prev) => [...prev, { role: "assistant", text: fullText }]);
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', text: fullText },
-        ]);
-
-        // speak the ai's response
-        speakText(fullText);
 
         currentTextPartsRef.current = [];
       }
@@ -246,52 +489,6 @@ export function useGeminiLive() {
       }
     }
   };
-
-  // speak text using Web Speech API
-  const speakText = (text: string) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      console.warn('speech synthesis not available');
-      return;
-    }
-
-    // stop any ongoing speech
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    // configure voice settings for a detective character here!
-    utterance.rate = 0.95; // slightly slower for dramatic effect
-    utterance.pitch = 0.9; // slightly lower pitch for gravitas
-    utterance.volume = 1.0;
-    utterance.lang = 'en-US';
-
-    // male dEep voice for detective
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(voice =>
-      voice.lang.startsWith('en') && voice.name.includes('Male')
-    ) || voices.find(voice => voice.lang.startsWith('en'));
-
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
-
-    utterance.onend = () => {
-      setIsSpeaking(false);
-    };
-
-    utterance.onerror = (event) => {
-      console.error('speech synthesis error:', event);
-      setIsSpeaking(false);
-    };
-
-    speechSynthesisRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-  };
-
   // stop speaking
   const stopSpeaking = () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -302,6 +499,7 @@ export function useGeminiLive() {
 
   // play collected audio chunks
   const playAudioChunks = (audioParts: string[]) => {
+    console.log("playing audio chunks:", audioParts.length, "parts");
     try {
       // convert pcm to wav
       const pcmData = audioParts.map((part) => {
@@ -476,7 +674,7 @@ export function useGeminiLive() {
     reader.onloadend = () => {
       const base64Audio = (reader.result as string).split(",")[1];
 
-      const displayText = userTranscriptRef.current || "[voice input]";
+  const displayText = userTranscriptRef.current || "[voice input]";
 
       // add user message with transcription
       setMessages((prev) => [
@@ -489,6 +687,8 @@ export function useGeminiLive() {
           {
             role: "user",
             parts: [
+              { text: World.getSnapshotText() },
+              { text: `[RESPOND IN ENGLISH ONLY] ${displayText}` },
               {
                 inlineData: {
                   mimeType: "audio/webm",
@@ -513,7 +713,15 @@ export function useGeminiLive() {
     const messageWithReminder = `[RESPOND IN ENGLISH ONLY] ${text}`;
 
     sessionRef.current.sendClientContent({
-      turns: [messageWithReminder],
+      turns: [
+        {
+          role: "user",
+          parts: [
+            { text: World.getSnapshotText() },
+            { text: messageWithReminder },
+          ],
+        },
+      ],
     });
   };
 
@@ -527,6 +735,18 @@ export function useGeminiLive() {
     setIsConnected(false);
     // stop any ongoing speech
     stopSpeaking();
+  };
+
+  // register a tool callback
+  const registerTool = (name: string, callback: (args: any) => any) => {
+    console.log(`registering tool: ${name}`);
+    toolCallbacksRef.current.set(name, callback);
+  };
+
+  // unregister a tool callback
+  const unregisterTool = (name: string) => {
+    console.log(`unregistering tool: ${name}`);
+    toolCallbacksRef.current.delete(name);
   };
 
   // Test connection on mount
@@ -560,11 +780,14 @@ export function useGeminiLive() {
     connectionError,
     totalApiKeys: API_KEYS.length,
     isSpeaking,
+    detectiveThought,
     connect,
     disconnect,
     startListening,
     stopListening,
     stopSpeaking,
     sendText,
+    registerTool,
+    unregisterTool,
   };
 }
