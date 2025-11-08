@@ -12,6 +12,7 @@ export type PlayerHandle = {
   setPosition: (pos: Vec3) => void;
   stop: () => void;
   getPosition: () => Vec3;
+  getObject3D: () => THREE.Object3D | null;
 };
 
 export type PlayerProps = {
@@ -105,6 +106,9 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
           const p = group.current?.position;
           return [p?.x ?? 0, p?.y ?? 0, p?.z ?? 0];
         },
+        getObject3D: () => {
+          return group.current;
+        },
       }),
       [speed]
     );
@@ -160,6 +164,15 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
         } else {
           // arrived
           targetRef.current = null;
+
+          // transition back to idle
+          const idle = getActionByKeywords(["static", "pose", "idle"]);
+          if (idle && currentAction.current !== idle) {
+            currentAction.current?.fadeOut?.(0.15);
+            idle.reset().fadeIn(0.15).play();
+            currentAction.current = idle;
+          }
+
           if (onArrived) onArrived();
         }
       } else {
