@@ -119,20 +119,8 @@ export default function Page() {
     connect();
     return () => disconnect();
   }, []);
-    const [message, setMessage] = useState("");
-    const [currentRoom, setCurrentRoom] = useState(mockRoom);
-    const [lastAction, setLastAction] = useState("");
-    const {
-        messages,
-        isConnected,
-        isListening,
-        isProcessing,
-        connect,
-        disconnect,
-        startListening,
-        stopListening,
-        sendText,
-    } = useGeminiLive();
+  
+
 
     // detect actions from user messages
     useEffect(() => {
