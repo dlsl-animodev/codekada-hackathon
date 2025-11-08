@@ -97,7 +97,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
     }, []);
 
     return (
-        <div className="relative h-dvh w-full overflow-hidden">
+        <div className="relative h-dvh w-full pt-[10rem] sm:pt-[0rem] sm:overflow-hidden">
             {/* Animated Background Canvas */}
             <Image 
                 src={HeroImage}
@@ -109,7 +109,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
             <div className="relative z-10 h-full max-w-6xl mx-auto flex flex-col items-center justify-center px-6">
                 <div className="flex flex-col items-center justify-center gap-8 p-12 rounded-3xl bg-gradient-to-br from-black/20 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl max-w-3xl transform  transition-transform duration-300">
                     {/* Title with modern styling */}
-                    <h1 className="text-center text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-[#FAC638] to-white bg-clip-text text-transparent leading-tight">
+                    <h1 className="text-center text-3xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-[#FAC638] to-white bg-clip-text text-transparent leading-tight">
                         The Case of the
                         <br />
                         <span className="text-[#FAC638]">
@@ -118,7 +118,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
                     </h1>
 
                     {/* Description */}
-                    <p className="text-center text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
+                    <p className="text-center text-xs sm:text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl">
                         A frantic letter arrives at Baker Street. Lady Eleanor
                         of Wiltshire has lost her family's priceless sapphire
                         necklace, the{" "}
@@ -132,7 +132,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
 
                     {/* Input with modern styling */}
                     <div className="w-full max-w-md">
-                        <label className="block text-sm font-medium text-gray-400 mb-2 ml-1">
+                        <label className="block text-xs font-medium text-gray-400 mb-2 ml-1">
                             Your Detective Name
                         </label>
                         <input
@@ -149,7 +149,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
                         onClick={() => {
                             setPage(1);
                         }}
-                        className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-[#FAC638] to-[#FFB74D] hover:from-[#FFB74D] hover:to-[#FAC638] text-black rounded-xl shadow-lg hover:shadow-[#FAC638]/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                        className="px-8 py-4 font-semibold bg-gradient-to-r from-[#FAC638] to-[#FFB74D] hover:from-[#FFB74D] hover:to-[#FAC638] text-black rounded-xl shadow-lg hover:shadow-[#FAC638]/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
                     >
                         Start Investigation
                         <span className="group-hover:translate-x-1 transition-transform duration-300">
@@ -158,7 +158,7 @@ export default function FirstPage({ setPage }: FirstPageProps) {
                     </Button>
 
                     {/* Feature hints */}
-                    <div className="flex gap-6 mt-4 text-sm text-gray-400">
+                    <div className="flex gap-6 mt-4 text-xs md:text-sm text-gray-400">
                         <span className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-[#64B5F6]"></span>
                             Isometric World

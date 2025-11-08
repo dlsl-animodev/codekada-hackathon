@@ -13,17 +13,17 @@ interface SecondPageProps {
 
 export default function SecondPage({ setPage }: SecondPageProps) {
     return (
-        <div className="flex flex-col items-center justify-center h-dvh gap-10 mx-10">
+        <div className="flex flex-col items-center justify-center h-dvh gap-10 mx-10 ">
             <Image
                 src={GameImage}
                 alt="Game Illustration"
                 className="w-screen h-screen mb-8 absolute z-[-1] brightness-50 blur-sm"
             />
 
-            <h1 className="bg-gradient-to-r from-white via-[#FAC638] to-white bg-clip-text text-transparent font-bold leading-tight text-6xl">
+            <h1 className="bg-gradient-to-r mt-[20rem] sm:mt-[4rem] from-white via-[#FAC638] to-white bg-clip-text text-transparent font-bold leading-tight text-2xl sm:text-3xl md:text-4xl lg:text-6xl text-center">
                 Here are the instructions to solve the case!
             </h1>
-            <ul className="grid grid-cols-3 gap-6">
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <InstructionItem number="1">
                     In this game, you control the AI agent by giving it
                     instructions, either through text or voice.
@@ -42,7 +42,7 @@ export default function SecondPage({ setPage }: SecondPageProps) {
                     onClick={() => {
                         setPage(1);
                     }}
-                    className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-[#FAC638] to-[#FFB74D] hover:from-[#FFB74D] hover:to-[#FAC638] text-black rounded-xl shadow-lg hover:shadow-[#FAC638]/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                    className="px-8 mb-[10rem] sm:mb-[4rem] py-4 text-lg font-semibold bg-gradient-to-r from-[#FAC638] to-[#FFB74D] hover:from-[#FFB74D] hover:to-[#FAC638] text-black rounded-xl shadow-lg hover:shadow-[#FAC638]/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2"
                 >
                     Let's Begin!
                     <span className="group-hover:translate-x-1 transition-transform duration-300">
@@ -65,7 +65,7 @@ function InstructionItem({ number, children }: InstructionItem) {
             <div className="text-neutral-500 font-extrabold text-lg">
                 {number}
             </div>
-            <p className="text-xl font-medium">{children}</p>
+            <p className="text-xs sm:text-base lg:text-xl font-medium">{children}</p>
         </li>
     );
 }
