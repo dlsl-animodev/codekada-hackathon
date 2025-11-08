@@ -5,7 +5,8 @@ import { useGeminiLive } from "@/hooks/useGeminiLive";
 
 const mockRoom = {
   name: "Lady Eleanor's Bedroom",
-  description: "Moonlight filters through the curtains. The jewelry box sits open on the vanity  empty, save for a broken clasp.",
+  description:
+    "Moonlight filters through the curtains. The jewelry box sits open on the vanity  empty, save for a broken clasp.",
 };
 
 export default function Page() {
@@ -83,14 +84,17 @@ export default function Page() {
       <main className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#101010] to-[#181818] relative">
         <div className="w-[80%] h-[60vh] border-2 border-yellow-700/50 rounded-xl bg-[#111] shadow-2xl flex items-center justify-center">
           <p className="text-gray-400 italic">
-            (Scene of {currentRoom.name} will appear here  rendered with Three.js)
+            (Scene of {currentRoom.name} will appear here rendered with
+            Three.js)
           </p>
         </div>
       </main>
 
       {/* Story Text Area */}
       <section className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto">
-        <h2 className="text-xl font-semibold text-yellow-500 mb-2">Case Notes:</h2>
+        <h2 className="text-xl font-semibold text-yellow-500 mb-2">
+          Case Notes:
+        </h2>
         <div className="space-y-3">
           {messages.length === 0 ? (
             <p className="text-gray-400 italic">
@@ -107,14 +111,19 @@ export default function Page() {
                   </p>
                 ) : (
                   <p className="text-gray-300">
-                    <span className="font-semibold text-yellow-500">AI Detective:</span> {msg.text}
+                    <span className="font-semibold text-yellow-500">
+                      AI Detective:
+                    </span>{" "}
+                    {msg.text}
                   </p>
                 )}
               </div>
             ))
           )}
           {isProcessing && (
-            <p className="text-yellow-500 italic animate-pulse">AI detective is thinking...</p>
+            <p className="text-yellow-500 italic animate-pulse">
+              AI detective is thinking...
+            </p>
           )}
         </div>
       </section>
