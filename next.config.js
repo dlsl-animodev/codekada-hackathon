@@ -1,12 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['three'],
-  webpack: (config) => {
+  transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
+  webpack: (config, { isServer }) => {
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',
       'bufferutil': 'commonjs bufferutil',
     });
+    
+    // handle canvas for server-side rendering
+    if (isServer) {
+      config.externals.push('@react-three/fiber', '@react-three/drei', 'three');
+    }
+    
     return config;
   },
 };
