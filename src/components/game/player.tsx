@@ -164,7 +164,7 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
         } else {
           // arrived
           targetRef.current = null;
-          
+
           // transition back to idle
           const idle = getActionByKeywords(["static", "pose", "idle"]);
           if (idle && currentAction.current !== idle) {
@@ -172,7 +172,7 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
             idle.reset().fadeIn(0.15).play();
             currentAction.current = idle;
           }
-          
+
           if (onArrived) onArrived();
         }
       } else {
