@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useGeminiLive } from "@/hooks/useGeminiLive";
+
+
 import React, { useState, useEffect, Suspense, useRef } from "react";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
 import { Canvas, useFrame } from "@react-three/fiber";
