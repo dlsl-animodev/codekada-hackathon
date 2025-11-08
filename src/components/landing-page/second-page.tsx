@@ -61,7 +61,7 @@ interface InstructionItem {
 
 function InstructionItem({ number, children }: InstructionItem) {
     return (
-        <li className="flex items-center gap-10 bg-white/10 border-white/20 text-wihte placeholder-gray-400 border rounded-2xl py-6 px-12">
+        <li className="flex items-center gap-10 bg-gradient-to-br from-black/20 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl p-6 rounded-2xl">
             <div className="text-neutral-500 font-extrabold text-lg">
                 {number}
             </div>
