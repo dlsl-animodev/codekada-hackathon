@@ -66,7 +66,10 @@ export function useGeminiLive() {
   const [detectiveThought, setDetectiveThought] = useState<{
     thought: string;
     priority: string;
-  } | null>(null);
+  } | null>({
+    thought: "the room is dark... i should look around and find a way to light the campfire",
+    priority: "medium"
+  });
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const sessionRef = useRef<Session | null>(null);

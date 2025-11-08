@@ -145,13 +145,8 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
           // ensure walking animation plays
           const walk = getActionByKeywords(["walk", "walking"]);
           if (walk) {
-            if (currentAction.current === walk) {
-              if ((walk.timeScale ?? 1) < 0) walk.timeScale = 1;
-              if (walk.paused) {
-                walk.paused = false;
-                walk.play?.();
-              }
-            } else {
+            if (currentAction.current !== walk) {
+              // switch to walk animation
               currentAction.current?.fadeOut?.(0.15);
               walk.paused = false;
               walk.setLoop(THREE.LoopRepeat, Infinity);
@@ -159,6 +154,17 @@ const Player = React.forwardRef<PlayerHandle, PlayerProps>(
               walk.timeScale = 1;
               walk.reset().fadeIn(0.15).play();
               currentAction.current = walk;
+            } else {
+              // already walking, ensure it's playing properly
+              if (walk.paused) {
+                walk.paused = false;
+              }
+              if ((walk.timeScale ?? 1) <= 0) {
+                walk.timeScale = 1;
+              }
+              if (!walk.isRunning()) {
+                walk.play();
+              }
             }
           }
         } else {
