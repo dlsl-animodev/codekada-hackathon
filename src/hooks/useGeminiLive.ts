@@ -71,11 +71,15 @@ export function useGeminiLive() {
   const handleMessage = (message: LiveServerMessage) => {
     console.log('received message from gemini:', message);
 
+    if (message.toolCall?.functionCalls) {
+      console.log('received tool call');
+    }
+
     if (message.serverContent?.modelTurn?.parts) {
-      const part = message.serverContent.modelTurn.parts[0];
+      const parts = message.serverContent.modelTurn.parts;
+      const part = parts[0];
 
       if (part?.text) {
-       // console.log('received text chunk:', part.text);
         currentTextPartsRef.current.push(part.text);
       }
 
@@ -87,12 +91,11 @@ export function useGeminiLive() {
 
     // check if turn is complete
     if (message.serverContent?.turnComplete) {
-//      console.log('turn complete');
       setIsProcessing(false);
 
       if (currentTextPartsRef.current.length > 0) {
         const fullText = currentTextPartsRef.current.join('');
-        console.log('complete text:', fullText);
+
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', text: fullText },
@@ -294,8 +297,6 @@ export function useGeminiLive() {
           },
         ],
       });
-
-      setMessages((prev) => [...prev, { role: 'user', text: '[voice message sent]' }]);
     };
     reader.readAsDataURL(audioBlob);
   };
@@ -306,8 +307,11 @@ export function useGeminiLive() {
 
     setMessages((prev) => [...prev, { role: 'user', text }]);
 
+    // add language reminder to help enforce english responses
+    const messageWithReminder = `[RESPOND IN ENGLISH ONLY] ${text}`;
+
     sessionRef.current.sendClientContent({
-      turns: [text],
+      turns: [messageWithReminder],
     });
   };
 
