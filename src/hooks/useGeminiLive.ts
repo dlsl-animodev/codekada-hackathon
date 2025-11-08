@@ -557,6 +557,11 @@ export function useGeminiLive() {
       const currentTime = audioContext.currentTime;
       const startTime = Math.max(currentTime, nextPlayTimeRef.current);
       
+      // set speaking state when first chunk starts playing
+      if (audioQueueRef.current.length === 0) {
+        setIsSpeaking(true);
+      }
+      
       source.start(startTime);
       audioQueueRef.current.push(source);
 
@@ -568,6 +573,11 @@ export function useGeminiLive() {
         const index = audioQueueRef.current.indexOf(source);
         if (index > -1) {
           audioQueueRef.current.splice(index, 1);
+        }
+        
+        // stop speaking when all audio chunks are done
+        if (audioQueueRef.current.length === 0) {
+          setIsSpeaking(false);
         }
       };
 
