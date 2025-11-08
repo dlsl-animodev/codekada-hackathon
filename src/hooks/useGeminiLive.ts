@@ -19,6 +19,8 @@ export function useGeminiLive() {
   const audioChunksRef = useRef<Blob[]>([]);
   const currentAudioPartsRef = useRef<string[]>([]);
   const currentTextPartsRef = useRef<string[]>([]);
+  const userTranscriptRef = useRef<string>('');
+  const recognitionRef = useRef<any>(null);
 
   // initialize gemini live session
   const connect = async () => {
@@ -189,6 +191,39 @@ export function useGeminiLive() {
       const mediaRecorder = new MediaRecorder(stream);
 
       audioChunksRef.current = [];
+      userTranscriptRef.current = '';
+
+      // Web Speech API for now since Gemini Live Transcription is not working
+      if (typeof window !== 'undefined') {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-US';
+
+          recognition.onresult = (event: any) => {
+            let transcript = '';
+            for (let i = 0; i < event.results.length; i++) {
+              if (event.results[i].isFinal) {
+                transcript += event.results[i][0].transcript;
+              }
+            }
+            if (transcript) {
+              userTranscriptRef.current = transcript;
+            }
+          };
+
+          recognition.onerror = (event: any) => {
+            console.error('speech recognition error:', event.error);
+          };
+
+          recognition.start();
+          recognitionRef.current = recognition;
+        } else {
+          console.warn('web speech api not available');
+        }
+      }
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -198,6 +233,13 @@ export function useGeminiLive() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         await sendAudioToGemini(audioBlob);
         stream.getTracks().forEach(track => track.stop());
       };
@@ -232,7 +274,10 @@ export function useGeminiLive() {
     reader.onloadend = () => {
       const base64Audio = (reader.result as string).split(',')[1];
 
-      console.log('sending audio data to gemini');
+      const displayText = userTranscriptRef.current || '[voice input]';
+
+      // add user message with transcription
+      setMessages((prev) => [...prev, { role: 'user' as const, text: displayText }]);
 
       sessionRef.current?.sendClientContent({
         turns: [
