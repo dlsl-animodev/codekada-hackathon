@@ -322,7 +322,7 @@ export default function Page() {
       const distance = Math.sqrt(dx * dx + dz * dz);
 
       // pickup range should account for player radius (0.5) + small reach distance
-      const pickupRange = 5;
+      const pickupRange = 2.5;
 
       if (distance > pickupRange) {
         // calculate a position just outside the collision boundary
@@ -410,7 +410,7 @@ export default function Page() {
 
       campfire.visible = true;
       campfireFire.visible = true;
-      
+
       // trigger lighting animation if available
       if ((World as any).lightCampfireAnimated) {
         (World as any).lightCampfireAnimated();
@@ -548,6 +548,18 @@ export default function Page() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* speaking indicator */}
+        {isSpeaking && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/90 border border-yellow-500/60 rounded-full px-4 md:px-6 py-2 md:py-3 flex items-center gap-2 md:gap-3 shadow-lg">
+            <div className="flex items-center gap-1">
+              <span className="w-1 md:w-1.5 h-3 md:h-4 bg-yellow-500 rounded-full animate-pulse" style={{ animationDelay: '0ms', animationDuration: '800ms' }} />
+              <span className="w-1 md:w-1.5 h-4 md:h-5 bg-yellow-500 rounded-full animate-pulse" style={{ animationDelay: '150ms', animationDuration: '800ms' }} />
+              <span className="w-1 md:w-1.5 h-3 md:h-4 bg-yellow-500 rounded-full animate-pulse" style={{ animationDelay: '300ms', animationDuration: '800ms' }} />
+            </div>
+            <span className="text-yellow-500 text-xs md:text-sm font-medium">detective speaking...</span>
           </div>
         )}
       </main>
