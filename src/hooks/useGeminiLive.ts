@@ -66,7 +66,10 @@ export function useGeminiLive() {
   const [detectiveThought, setDetectiveThought] = useState<{
     thought: string;
     priority: string;
-  } | null>(null);
+  } | null>({
+    thought: "the room is dark... i should look around and find a way to light the campfire",
+    priority: "medium"
+  });
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const sessionRef = useRef<Session | null>(null);
@@ -81,6 +84,9 @@ export function useGeminiLive() {
   const shouldReconnectRef = useRef(false);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const toolCallbacksRef = useRef<Map<string, (args: any) => any>>(new Map());
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioQueueRef = useRef<AudioBufferSourceNode[]>([]);
+  const nextPlayTimeRef = useRef<number>(0);
 
   // initialize gemini live session with API key rotation
   const connect = async () => {
@@ -465,7 +471,8 @@ export function useGeminiLive() {
             "received audio chunk, mime type:",
             part.inlineData.mimeType
           );
-          currentAudioPartsRef.current.push(part.inlineData.data!);
+          // play audio chunk immediately as it arrives
+          playAudioChunkStreaming(part.inlineData.data!);
         }
       }
     }
@@ -489,19 +496,91 @@ export function useGeminiLive() {
       }
     }
   };
+  
   // stop speaking
   const stopSpeaking = () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
     }
+    // also stop web audio playback
+    if (audioContextRef.current) {
+      audioQueueRef.current.forEach(source => {
+        try {
+          source.stop();
+        } catch (e) {
+          // already stopped
+        }
+      });
+      audioQueueRef.current = [];
+      nextPlayTimeRef.current = 0;
+    }
   };
 
-  // play collected audio chunks
+  // initialize audio context
+  const getAudioContext = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return audioContextRef.current;
+  };
+
+  // play individual audio chunk immediately (streaming)
+  const playAudioChunkStreaming = async (base64Audio: string) => {
+    try {
+      const audioContext = getAudioContext();
+      
+      // decode base64 to pcm data
+      const binary = atob(base64Audio);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      // convert pcm to audio buffer - use correct sample rate (24000 Hz)
+      const pcmData = new Int16Array(bytes.buffer);
+      const sampleRate = 24000; // must match gemini's output sample rate
+      const audioBuffer = audioContext.createBuffer(1, pcmData.length, sampleRate);
+      const channelData = audioBuffer.getChannelData(0);
+      
+      // simple conversion without interpolation for speed
+      for (let i = 0; i < pcmData.length; i++) {
+        channelData[i] = pcmData[i] / 32768.0; // normalize to -1 to 1
+      }
+
+      // create source and schedule playback
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+
+      // schedule this chunk to play after the previous one
+      const currentTime = audioContext.currentTime;
+      const startTime = Math.max(currentTime, nextPlayTimeRef.current);
+      
+      source.start(startTime);
+      audioQueueRef.current.push(source);
+
+      // update next play time
+      nextPlayTimeRef.current = startTime + audioBuffer.duration;
+
+      // clean up finished sources
+      source.onended = () => {
+        const index = audioQueueRef.current.indexOf(source);
+        if (index > -1) {
+          audioQueueRef.current.splice(index, 1);
+        }
+      };
+
+    } catch (error) {
+      console.error("failed to play audio chunk:", error);
+    }
+  };
+
+  // play collected audio chunks (fallback for compatibility)
   const playAudioChunks = (audioParts: string[]) => {
     console.log("playing audio chunks:", audioParts.length, "parts");
     try {
-      // convert pcm to wav
+      // convert pcm to wav with lower quality settings
       const pcmData = audioParts.map((part) => {
         const binary = atob(part);
         const bytes = new Uint8Array(binary.length);
@@ -512,7 +591,8 @@ export function useGeminiLive() {
       });
 
       const totalLength = pcmData.reduce((sum, arr) => sum + arr.length, 0);
-      const wavHeader = createWavHeader(totalLength, 24000, 1, 16);
+      // use 16000 Hz sample rate for faster loading (lower quality but faster)
+      const wavHeader = createWavHeader(totalLength, 16000, 1, 16);
 
       const combinedData = new Uint8Array(wavHeader.length + totalLength);
       combinedData.set(wavHeader, 0);
