@@ -1,10 +1,8 @@
 ﻿"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
-
 import { Canvas } from "@react-three/fiber";
-import { Suspense } from "react";
 import { OrbitControls } from "@react-three/drei";
 
 const mockRoom = {
