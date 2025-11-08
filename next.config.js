@@ -7,12 +7,10 @@ const nextConfig = {
       'utf-8-validate': 'commonjs utf-8-validate',
       'bufferutil': 'commonjs bufferutil',
     });
-    
-    // handle canvas for server-side rendering
     if (isServer) {
       config.externals.push('@react-three/fiber', '@react-three/drei', 'three');
     }
-    
+
     return config;
   },
 };
