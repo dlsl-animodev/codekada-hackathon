@@ -15,9 +15,15 @@ type NodeSummary = {
   children?: number;
 };
 
+type CollisionObject = {
+  object: THREE.Object3D;
+  radius: number;
+};
+
 class WorldRegistry {
   private sceneRoot: THREE.Object3D | null = null;
   private labeled: LabeledRefs = {};
+  private collidableObjects: CollisionObject[] = [];
 
   setSceneRoot(root: THREE.Object3D) {
     this.sceneRoot = root;
@@ -26,6 +32,56 @@ class WorldRegistry {
   registerObject(label: string, obj: THREE.Object3D | null) {
     if (!obj) return;
     this.labeled[label.toLowerCase()] = obj;
+  }
+
+  // register an object as collidable with a collision radius
+  registerCollidable(obj: THREE.Object3D, radius: number) {
+    if (!obj) return;
+    this.collidableObjects.push({ object: obj, radius });
+  }
+
+  // check if a position would collide with any collidable objects
+  checkCollision(position: THREE.Vector3, playerRadius: number = 0.5): boolean {
+    for (const collidable of this.collidableObjects) {
+      const objPos = new THREE.Vector3();
+      collidable.object.getWorldPosition(objPos);
+      
+      // simple 2d circle collision (ignore y-axis)
+      const dx = position.x - objPos.x;
+      const dz = position.z - objPos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      const minDistance = playerRadius + collidable.radius;
+      
+      if (distance < minDistance) {
+        return true; // collision detected
+      }
+    }
+    return false;
+  }
+
+  // get a valid position that doesn't collide (push away from collision)
+  getValidPosition(targetPosition: THREE.Vector3, currentPosition: THREE.Vector3, playerRadius: number = 0.5): THREE.Vector3 {
+    if (!this.checkCollision(targetPosition, playerRadius)) {
+      return targetPosition.clone();
+    }
+    
+    // if collision detected, try to slide along the obstacle
+    const validPos = currentPosition.clone();
+    
+    // try moving only in x direction
+    const xOnly = new THREE.Vector3(targetPosition.x, targetPosition.y, currentPosition.z);
+    if (!this.checkCollision(xOnly, playerRadius)) {
+      return xOnly;
+    }
+    
+    // try moving only in z direction
+    const zOnly = new THREE.Vector3(currentPosition.x, targetPosition.y, targetPosition.z);
+    if (!this.checkCollision(zOnly, playerRadius)) {
+      return zOnly;
+    }
+    
+    // can't move, stay in current position
+    return validPos;
   }
 
   getObjectByLabel(label: string): THREE.Object3D | null {

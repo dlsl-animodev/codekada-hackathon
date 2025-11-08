@@ -20,6 +20,7 @@ export default function Page() {
   const [currentRoom, setCurrentRoom] = useState(mockRoom);
   const [inventory, setInventory] = useState<string[]>([]);
   const playerRef = useRef<any>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const {
     messages,
     isConnected,
@@ -315,11 +316,25 @@ export default function Page() {
       playerObj.getWorldPosition(playerPos);
       obj.getWorldPosition(objPos);
 
-      const distance = playerPos.distanceTo(objPos);
-      const pickupRange = 2.0;
+      // calculate 2d distance (ignore y-axis) for better pickup detection
+      const dx = playerPos.x - objPos.x;
+      const dz = playerPos.z - objPos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+
+      // pickup range should account for player radius (0.5) + small reach distance
+      const pickupRange = 5;
 
       if (distance > pickupRange) {
-        playerRef.current.moveTo([objPos.x, objPos.y, objPos.z]);
+        // calculate a position just outside the collision boundary
+        const direction = new THREE.Vector3(dx, 0, dz).normalize();
+        const targetDistance = 0.8; // get within 0.8 units
+        const targetPos = new THREE.Vector3(
+          objPos.x + direction.x * targetDistance,
+          objPos.y,
+          objPos.z + direction.z * targetDistance
+        );
+
+        playerRef.current.moveTo([targetPos.x, targetPos.y, targetPos.z]);
         return {
           success: false,
           message: `moving closer to ${objectName} first. try picking it up again once you're near it.`,
@@ -367,11 +382,25 @@ export default function Page() {
       playerObj.getWorldPosition(playerPos);
       campfire.getWorldPosition(campfirePos);
 
-      const distance = playerPos.distanceTo(campfirePos);
-      const lightRange = 2.5;
+      // calculate 2d distance (ignore y-axis)
+      const dx = playerPos.x - campfirePos.x;
+      const dz = playerPos.z - campfirePos.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+
+      // interaction range should account for campfire collision radius (0.6) + player radius (0.5) + reach
+      const lightRange = 1.5;
 
       if (distance > lightRange) {
-        playerRef.current.moveTo([campfirePos.x, campfirePos.y, campfirePos.z]);
+        // calculate a position just outside the collision boundary
+        const direction = new THREE.Vector3(dx, 0, dz).normalize();
+        const targetDistance = 1.2; // get within 1.2 units
+        const targetPos = new THREE.Vector3(
+          campfirePos.x + direction.x * targetDistance,
+          campfirePos.y,
+          campfirePos.z + direction.z * targetDistance
+        );
+
+        playerRef.current.moveTo([targetPos.x, targetPos.y, targetPos.z]);
         return {
           success: false,
           message: `moving closer to the campfire first. try lighting it again once you're near it.`,
@@ -381,6 +410,11 @@ export default function Page() {
 
       campfire.visible = true;
       campfireFire.visible = true;
+      
+      // trigger lighting animation if available
+      if ((World as any).lightCampfireAnimated) {
+        (World as any).lightCampfireAnimated();
+      }
 
       return {
         success: true,
@@ -436,6 +470,13 @@ export default function Page() {
     (window as any).World = World;
   }, [])
 
+  // auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [messages, isProcessing]);
+
    return (
     <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-gray-100">
       {/* Header */}
@@ -479,12 +520,12 @@ export default function Page() {
 
         {/* detective thoughts display */}
         {detectiveThought && (
-          <div className="absolute top-4 left-4 bg-black/80 border border-yellow-700/40 rounded-lg p-4 max-w-[300px]">
-            <h3 className="text-yellow-500 font-semibold mb-2 text-sm flex items-center gap-2">
-              <span>💭</span>
+          <div className="absolute top-4 left-4 bg-black/80 border border-yellow-700/40 rounded-lg p-3 md:p-4 max-w-[180px] sm:max-w-[220px] md:max-w-[300px] max-h-[120px] md:max-h-none overflow-y-auto">
+            <h3 className="text-yellow-500 font-semibold mb-1 md:mb-2 text-xs md:text-sm flex items-center gap-1 md:gap-2">
+              <span className="text-sm md:text-base">💭</span>
               <span>detective's thoughts</span>
             </h3>
-            <div className={`text-sm ${
+            <div className={`text-xs md:text-sm ${
               detectiveThought.priority === 'critical' ? 'text-red-400' :
               detectiveThought.priority === 'high' ? 'text-orange-400' :
               detectiveThought.priority === 'medium' ? 'text-yellow-300' :
@@ -497,11 +538,11 @@ export default function Page() {
 
         {/* inventory display */}
         {inventory.length > 0 && (
-          <div className="absolute top-4 right-4 bg-black/80 border border-yellow-700/40 rounded-lg p-4 min-w-[200px]">
-            <h3 className="text-yellow-500 font-semibold mb-2 text-sm">inventory</h3>
+          <div className="absolute top-4 right-4 bg-black/80 border border-yellow-700/40 rounded-lg p-3 md:p-4 min-w-[120px] md:min-w-[200px] max-h-[120px] md:max-h-none overflow-y-auto">
+            <h3 className="text-yellow-500 font-semibold mb-1 md:mb-2 text-xs md:text-sm">inventory</h3>
             <div className="space-y-1">
               {inventory.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-gray-300 text-sm">
+                <div key={idx} className="flex items-center gap-1 md:gap-2 text-gray-300 text-xs md:text-sm">
                   <span className="text-yellow-500">▪</span>
                   <span className="capitalize">{item}</span>
                 </div>
@@ -512,7 +553,7 @@ export default function Page() {
       </main>
 
       {/* Story Text Area */}
-      <section className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto">
+      <section ref={chatScrollRef} className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto scroll-smooth">
         <h2 className="text-xl font-semibold text-yellow-500 mb-2">
           Case Notes:
         </h2>
