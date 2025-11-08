@@ -2,12 +2,103 @@
 
 import React, { useState, useEffect } from "react";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
+import React, { useState, useEffect, Suspense, useRef } from "react";
+import { useGeminiLive } from "@/hooks/useGeminiLive";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 
 const mockRoom = {
   name: "Lady Eleanor's Bedroom",
   description:
     "Moonlight filters through the curtains. The jewelry box sits open on the vanity  empty, save for a broken clasp.",
 };
+
+// interactive box component
+function InteractiveBox({ action }: { action: string }) {
+    const meshRef = useRef<any>(null);
+    const [rotation, setRotation] = useState([0, 0, 0]);
+    const [isFlipping, setIsFlipping] = useState(false);
+    const [targetRotation, setTargetRotation] = useState([0, 0, 0]);
+    const [color, setColor] = useState("orange");
+
+    // available colors for the box
+    const colorMap: { [key: string]: string } = {
+        red: "#ff0000",
+        blue: "#0066ff",
+        green: "#00ff00",
+        yellow: "#ffff00",
+        orange: "#ff8800",
+        purple: "#9900ff",
+        pink: "#ff0088",
+        cyan: "#00ffff",
+        white: "#ffffff",
+        black: "#000000",
+        gold: "#ffd700",
+        silver: "#c0c0c0",
+    };
+
+    // detect commands and trigger actions
+    useEffect(() => {
+        const lowerAction = action.toLowerCase();
+
+        // check for color changes
+        let colorChanged = false;
+        for (const colorName in colorMap) {
+            if (lowerAction.includes(colorName)) {
+                setColor(colorMap[colorName]);
+                colorChanged = true;
+                console.log(`changing box color to ${colorName}`);
+                break;
+            }
+        }
+
+        // check for rotation commands
+        if (lowerAction.includes('flip') || lowerAction.includes('rotate')) {
+            // flip the box 180 degrees
+            setTargetRotation([Math.PI, 0, 0]);
+            setIsFlipping(true);
+            console.log('flipping box');
+        } else if (lowerAction.includes('spin') || lowerAction.includes('turn')) {
+            // spin the box 360 degrees
+            setTargetRotation([rotation[0] + Math.PI * 2, rotation[1], rotation[2]]);
+            setIsFlipping(true);
+            console.log('spinning box');
+        } else if (lowerAction.includes('reset') || lowerAction.includes('normal')) {
+            // reset to original position
+            setTargetRotation([0, 0, 0]);
+            setIsFlipping(true);
+            setColor("orange");
+            console.log('resetting box');
+        }
+    }, [action]);
+
+    // animate rotation
+    useFrame(() => {
+        if (meshRef.current && isFlipping) {
+            // smooth interpolation to target rotation
+            meshRef.current.rotation.x += (targetRotation[0] - meshRef.current.rotation.x) * 0.1;
+            meshRef.current.rotation.y += (targetRotation[1] - meshRef.current.rotation.y) * 0.1;
+            meshRef.current.rotation.z += (targetRotation[2] - meshRef.current.rotation.z) * 0.1;
+
+            // check if reached target
+            const diff = Math.abs(targetRotation[0] - meshRef.current.rotation.x);
+            if (diff < 0.01) {
+                setIsFlipping(false);
+                setRotation([meshRef.current.rotation.x, meshRef.current.rotation.y, meshRef.current.rotation.z]);
+            }
+        } else if (meshRef.current) {
+            // gentle idle rotation when not flipping
+            meshRef.current.rotation.y += 0.005;
+        }
+    });
+
+    return (
+        <mesh ref={meshRef}>
+            <boxGeometry args={[2, 2, 2]} />
+            <meshStandardMaterial color={color} />
+        </mesh>
+    );
+}
 
 export default function Page() {
   const [message, setMessage] = useState("");
@@ -28,6 +119,35 @@ export default function Page() {
     connect();
     return () => disconnect();
   }, []);
+    const [message, setMessage] = useState("");
+    const [currentRoom, setCurrentRoom] = useState(mockRoom);
+    const [lastAction, setLastAction] = useState("");
+    const {
+        messages,
+        isConnected,
+        isListening,
+        isProcessing,
+        connect,
+        disconnect,
+        startListening,
+        stopListening,
+        sendText,
+    } = useGeminiLive();
+
+    // detect actions from user messages
+    useEffect(() => {
+        if (messages.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage.role === 'user') {
+                setLastAction(lastMessage.text);
+            }
+        }
+    }, [messages]);
+
+    useEffect(() => {
+        connect();
+        return () => disconnect();
+    }, []);
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -80,53 +200,77 @@ export default function Page() {
         <div className="absolute inset-0 top-2 -z-10 bg-black/40 blur-md rounded-lg" />
       </div>
 
-      {/* Main Scene Area */}
-      <main className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#101010] to-[#181818] relative">
-        <div className="w-[80%] h-[60vh] border-2 border-yellow-700/50 rounded-xl bg-[#111] shadow-2xl flex items-center justify-center">
-          <p className="text-gray-400 italic">
-            (Scene of {currentRoom.name} will appear here rendered with
-            Three.js)
-          </p>
-        </div>
-      </main>
+            {/* Main Scene Area */}
+            <main className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#101010] to-[#181818] relative">
+                <Canvas>
+                    <ambientLight intensity={0.5} />
+                    <directionalLight position={[5, 5, 5]} intensity={1} />
+                    <Suspense fallback={null}>
+                        <InteractiveBox action={lastAction} />
+                    </Suspense>
+                    <OrbitControls />
+                </Canvas>
+            </main>
 
-      {/* Story Text Area */}
-      <section className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto">
-        <h2 className="text-xl font-semibold text-yellow-500 mb-2">
-          Case Notes:
-        </h2>
-        <div className="space-y-3">
-          {messages.length === 0 ? (
-            <p className="text-gray-400 italic">
-              {isConnected
-                ? "AI detective is ready. Start asking questions or use voice..."
-                : "Connecting to AI detective..."}
-            </p>
-          ) : (
-            messages.map((msg, idx) => (
-              <div key={idx} className="leading-relaxed">
-                {msg.role === "user" ? (
-                  <p className="text-blue-400">
-                    <span className="font-semibold">You:</span> {msg.text}
-                  </p>
-                ) : (
-                  <p className="text-gray-300">
-                    <span className="font-semibold text-yellow-500">
-                      AI Detective:
-                    </span>{" "}
-                    {msg.text}
-                  </p>
-                )}
-              </div>
-            ))
-          )}
-          {isProcessing && (
-            <p className="text-yellow-500 italic animate-pulse">
-              AI detective is thinking...
-            </p>
-          )}
-        </div>
-      </section>
+            {/* Story Text Area */}
+            <section className="border-t border-yellow-700/40 bg-[#111] p-6 h-48 overflow-y-auto">
+                <div className="flex justify-between items-center mb-2">
+                    <h2 className="text-xl font-semibold text-yellow-500">
+                        Case Notes:
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Available Colors:</span>
+                        <div className="flex gap-1">
+                            {['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'cyan', 'gold', 'silver'].map((colorName) => (
+                                <div
+                                    key={colorName}
+                                    className="w-4 h-4 rounded-sm border border-gray-600 hover:cursor-pointer hover:scale-110 transition"
+                                    style={{
+                                        backgroundColor: colorName === 'gold' ? '#ffd700' :
+                                                       colorName === 'silver' ? '#c0c0c0' :
+                                                       colorName
+                                    }}
+                                    title={colorName}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    {messages.length === 0 ? (
+                        <p className="text-gray-400 italic">
+                            {isConnected
+                                ? "AI detective is ready. Start asking questions or use voice..."
+                                : "Connecting to AI detective..."}
+                        </p>
+                    ) : (
+                        messages.map((msg, idx) => (
+                            <div key={idx} className="leading-relaxed">
+                                {msg.role === "user" ? (
+                                    <p className="text-blue-400">
+                                        <span className="font-semibold">
+                                            You:
+                                        </span>{" "}
+                                        {msg.text}
+                                    </p>
+                                ) : (
+                                    <p className="text-gray-300">
+                                        <span className="font-semibold text-yellow-500">
+                                            AI Detective:
+                                        </span>{" "}
+                                        {msg.text}
+                                    </p>
+                                )}
+                            </div>
+                        ))
+                    )}
+                    {isProcessing && (
+                        <p className="text-yellow-500 italic animate-pulse">
+                            AI detective is thinking...
+                        </p>
+                    )}
+                </div>
+            </section>
 
       {/* Input Box */}
       <footer className="bg-[#1a1a1a] border-t border-yellow-700/40 p-4 flex items-center gap-3">
