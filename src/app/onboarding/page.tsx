@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useUsername } from "../../hooks/use-username";
+import { useUsername } from "../../../hooks/use-username";
 import { Button } from "@/components/ui/Button";
 import { useEffect, useRef } from "react";
 
@@ -107,7 +107,7 @@ export default function OnboardingPage() {
 
       {/* Content Container */}
       <div className="relative z-10 h-full max-w-6xl mx-auto flex flex-col items-center justify-center px-6">
-        <div className="flex flex-col items-center justify-center gap-8 p-12 rounded-3xl bg-gradient-to-br from-black/40 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl max-w-3xl transform  transition-transform duration-300">
+        <div className="flex flex-col items-center justify-center gap-8 p-12 rounded-3xl bg-gradient-to-br from-black/40 to-black/20 backdrop-blur-xl border-2 border-white/10 shadow-2xl max-w-3xl transform hover:scale-[1.02] transition-transform duration-300">
           {/* Badge */}
           <div className="px-6 py-2 rounded-full bg-[#FAC638]/20 border border-[#FAC638]/40 backdrop-blur-sm">
             <span className="text-[#FAC638] font-semibold tracking-wider text-sm">
@@ -147,7 +147,7 @@ export default function OnboardingPage() {
           </div>
 
           {/* CTA Button */}
-          <Link href={"/game"} className="group">
+          <Link href={"/"} className="group">
             <Button className="px-8 py-4 text-lg font-semibold bg-gradient-to-r from-[#FAC638] to-[#FFB74D] hover:from-[#FFB74D] hover:to-[#FAC638] text-black rounded-xl shadow-lg hover:shadow-[#FAC638]/50 transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
               Start Investigation
               <span className="group-hover:translate-x-1 transition-transform duration-300">
