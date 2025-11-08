@@ -3,7 +3,31 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
 import BedroomScene from "./bedroom-scene";
 
-export default function SceneCanvas() {
+interface ObjectState {
+  rotation: { x: number; y: number; z: number };
+  targetRotation: { x: number; y: number; z: number };
+  action: string;
+  color: string;
+}
+
+interface SceneCanvasProps {
+  objectStates: {
+    bed: ObjectState;
+    desk: ObjectState;
+    drawer: ObjectState;
+    campfire: ObjectState;
+  };
+  setObjectStates: React.Dispatch<
+    React.SetStateAction<{
+      bed: ObjectState;
+      desk: ObjectState;
+      drawer: ObjectState;
+      campfire: ObjectState;
+    }>
+  >;
+}
+
+export default function SceneCanvas({ objectStates, setObjectStates }: SceneCanvasProps) {
   return (
     // make this fill the parent by using absolute inset-0
     <div className="absolute inset-0">
@@ -32,7 +56,7 @@ export default function SceneCanvas() {
         />
 
         <Suspense fallback={null}>
-          <BedroomScene />
+          <BedroomScene objectStates={objectStates} setObjectStates={setObjectStates} />
         </Suspense>
         {/* Disable rotation to keep the isometric view, allow pan/zoom */}
         <OrbitControls
