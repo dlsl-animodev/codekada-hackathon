@@ -4,6 +4,7 @@ import HEROIMAGE from "../../../public/images/hero-image.jpg";
 import Image from "next/image";
 import Link from "next/link";
 import { useUsername } from "../../../hooks/use-username";
+import { Button } from "@/components/ui/Button";
 
 export default function OnboardingPage() {
     const { username, setUsername } = useUsername();
@@ -40,12 +41,7 @@ export default function OnboardingPage() {
                 />
 
                 <Link href={"/"}>
-                    <button
-                        className="w-80 relative overflow-hidden bg-[#FAC638] hover:bg-[#FAC638]/80 transition-transform duration-150 ease-out 
-                        text-[#1A1A1A] px-4 py-2 rounded font-semibold active:scale-95 active:brightness-95 focus:outline-none focus:ring-2 focus:ring-[#FAC638]/50"
-                    >
-                        Start Mystery
-                    </button>
+                    <Button>Start Solving</Button>
                 </Link>
             </div>
         </div>
