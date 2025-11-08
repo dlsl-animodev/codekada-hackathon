@@ -16,10 +16,12 @@ export default function Page() {
     isConnected,
     isListening,
     isProcessing,
+    isSpeaking,
     connect,
     disconnect,
     startListening,
     stopListening,
+    stopSpeaking,
     sendText,
   } = useGeminiLive();
 
@@ -116,11 +118,23 @@ export default function Page() {
           {isProcessing && (
             <p className="text-yellow-500 italic animate-pulse">AI detective is thinking...</p>
           )}
+          {isSpeaking && (
+            <p className="text-yellow-500 italic animate-pulse">AI detective is speaking...</p>
+          )}
         </div>
       </section>
 
       {/* Input Box */}
       <footer className="bg-[#1a1a1a] border-t border-yellow-700/40 p-4 flex items-center gap-3">
+        {isSpeaking && (
+          <button
+            onClick={stopSpeaking}
+            className="px-4 py-3 rounded-lg font-semibold transition bg-orange-600 hover:bg-orange-700 text-white hover:cursor-pointer"
+          >
+            Stop
+          </button>
+        )}
+
         <button
           onClick={toggleVoice}
           disabled={!isConnected || isProcessing}
